@@ -1,0 +1,31 @@
+spring:
+  profiles:
+    active: local
+  application:
+    name: gp-gateway
+server:
+  port: 8100
+
+# 【local环境】
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+
+
+server:
+  port: 8100
+
+
+# 【dev环境】
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+
+server:
+  port: 8100
+

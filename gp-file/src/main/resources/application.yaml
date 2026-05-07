@@ -1,0 +1,28 @@
+spring:
+  profiles:
+    active: local
+  application:
+    name: gp-file
+
+# 【dev环境】
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+
+server:
+  port: 8102
+
+# 【local环境】
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+
+server:
+  port: 8102
+
+
