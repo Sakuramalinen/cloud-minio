@@ -9,14 +9,14 @@
         <outputRelativeToContentRoot value="true" />
         <module name="gp-common" />
         <module name="gp-gateway" />
-        <module name="gp-file" />
+        <module name="gp-fileManage" />
       </profile>
     </annotationProcessing>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="gp-common" options="-parameters" />
-      <module name="gp-file" options="-parameters" />
+      <module name="gp-fileManage" options="-parameters" />
       <module name="gp-gateway" options="-parameters" />
     </option>
   </component>
