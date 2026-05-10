@@ -1,0 +1,31 @@
+package com.gp_01.common.autoconfig.mybatis;
+
+import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
+import com.gp_01.common.constants.DataBaseConstant;
+import org.apache.ibatis.reflection.MetaObject;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDateTime;
+@Component
+public class BaseMetaObjectHandler implements MetaObjectHandler {
+    @Override
+    public void insertFill(MetaObject metaObject) {
+        //创建时间
+        setCreateTime(metaObject);
+        //修改时间
+        setUpdateTime(metaObject);
+    }
+
+    @Override
+    public void updateFill(MetaObject metaObject) {
+        setUpdateTime(metaObject);
+    }
+
+
+    private void setCreateTime(MetaObject metaObject){
+        this.strictInsertFill(metaObject, DataBaseConstant.CREATE_TIME, LocalDateTime::now, LocalDateTime.class);
+    }
+    private void setUpdateTime(MetaObject metaObject){
+        this.strictUpdateFill(metaObject, DataBaseConstant.UPDATE_TIME, LocalDateTime::now, LocalDateTime.class);
+    }
+}

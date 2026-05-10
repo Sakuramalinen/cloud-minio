@@ -1,0 +1,51 @@
+spring:
+  profiles:
+    active: local
+  application:
+    name: gp-file
+
+# 【dev环境】
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+
+server:
+  port: 8102
+
+# 【local环境】
+---
+spring:
+  servlet:
+    multipart:
+      # 设置最大上传文件大小
+      max-file-size: 10GB
+      max-request-size: 15GB
+  config:
+    activate:
+      on-profile: local
+# mysql数据库
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://10.211.55.14:3306/gp_file
+    username: root
+    password: 3186255
+
+logging:
+  level:
+    com.gp_01.file: debug
+
+
+manual:
+  minio:
+    url: http:10.211.55.14:9000
+    access-key: admin
+    secret-key: Syq3186255
+    bucket-name: local
+
+
+server:
+  port: 8102
+

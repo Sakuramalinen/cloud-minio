@@ -1,0 +1,80 @@
+package com.gp_01.file.controller;
+
+
+import com.gp_01.common.domain.dto.Result;
+import com.gp_01.file.domain.po.UserFile;
+import com.gp_01.file.service.IUserFileService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import org.apache.ibatis.annotations.Delete;
+import org.springframework.web.bind.annotation.*;
+
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+
+/**
+ * <p>
+ * 用户逻辑文件表 前端控制器
+ * </p>
+ *
+ * @author employee_01
+ * @since 2026-05-08
+ */
+@RestController
+@RequestMapping("/user-file")
+@Tag(name = "用户逻辑文件控制器", description = "")
+@RequiredArgsConstructor
+public class UserFileController {
+
+    private final IUserFileService userFileService;
+
+    @PostMapping("upload/file/{parentId}/{md5Hex}")
+    @Operation(summary = "上传文件")
+    public Result<Void> uploadFile(@RequestPart MultipartFile file, @PathVariable Long parentId, @PathVariable String md5Hex){
+         userFileService.uploadFile(file, parentId, md5Hex);
+         return Result.success();
+    }
+
+    //TODO 上传文件夹
+    @PostMapping("upload/dir/")
+    @Operation(summary = "上传文件夹")
+    public Result<Void> uploadDir(){
+        return null;
+    }
+
+
+    @PostMapping("create/{parentId}/{fileName}")
+    @Operation(summary = "新建文件夹")
+    public Result<Void> makeDir(@PathVariable Long parentId, @PathVariable String fileName){
+         userFileService.makeDir(parentId, fileName);
+         return Result.success();
+    }
+
+    @PutMapping()
+    @Operation(summary = "文件重命名")
+    public Result<Void> reName(Long id, String fileName){
+        userFileService.reName(id,fileName);
+        return Result.success();
+    }
+
+    @DeleteMapping("{id}")
+    @Operation(summary = "删除文件或文件夹")
+    public Result<Void> deleteById(@PathVariable Long id){
+        userFileService.deleteById(id);
+        return Result.success();
+    }
+    @GetMapping("list/{parentId}")
+    @Operation(summary = "查询当前目录")
+    public Result<List<UserFile>> listFileByParentId(@PathVariable Long parentId){
+        List<UserFile> res = userFileService.listFileByParentId(parentId);
+        return Result.success(res);
+    }
+
+
+
+
+
+}
