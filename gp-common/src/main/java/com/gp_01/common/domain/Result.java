@@ -1,4 +1,4 @@
-package com.gp_01.common.domain.dto;
+package com.gp_01.common.domain;
 
 import com.gp_01.common.enums.ResultCode;
 import lombok.Data;
@@ -47,5 +47,9 @@ public class Result<T> implements Serializable {
         return build(SERVER_ERROR.getCode(), msg, null);
     }
 
+
+    public static Result<Void> error(ResultCode resultCode, String message) {
+        return build(resultCode.getCode(), resultCode.getMsg() + ":" +message,null);
+    }
 
 }

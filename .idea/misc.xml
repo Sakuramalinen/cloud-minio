@@ -5,7 +5,15 @@
     <option name="originalFiles">
       <list>
         <option value="$PROJECT_DIR$/pom.xml" />
+        <option value="$PROJECT_DIR$/gp-common/gp-common-base/pom.xml" />
+        <option value="$PROJECT_DIR$/gp-common/gp-common-mybatis/pom.xml" />
       </list>
+    </option>
+    <option name="ignoredFiles">
+      <set>
+        <option value="$PROJECT_DIR$/gp-common/gp-common-base/pom.xml" />
+        <option value="$PROJECT_DIR$/gp-common/gp-common-mybatis/pom.xml" />
+      </set>
     </option>
   </component>
   <component name="ProjectRootManager" version="2" languageLevel="JDK_24" default="true" project-jdk-name="openjdk-24 (2)" project-jdk-type="JavaSDK">

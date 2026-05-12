@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.shenyongqi.pg</groupId>
+    <groupId>com.shenyongqi.gp</groupId>
     <artifactId>gp-parent</artifactId>
     <version>0.0.1</version>
     <name>gp</name>
@@ -103,6 +103,7 @@
             <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
             <version>${swagger.version}</version>
         </dependency>
+
         <!--        <dependency>-->
         <!--            <groupId>cn.hutool</groupId>-->
         <!--            <artifactId>hutool-all</artifactId>-->

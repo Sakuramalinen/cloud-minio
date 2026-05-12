@@ -1,6 +1,5 @@
 package com.gp_01.file.service.impl;
 
-import com.gp_01.common.domain.dto.Result;
 import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.file.config.MinioConfig;
 import com.gp_01.file.domain.po.FileBase;
@@ -10,12 +9,10 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gp_01.file.util.MinioUtils;
 import io.micrometer.common.util.StringUtils;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;

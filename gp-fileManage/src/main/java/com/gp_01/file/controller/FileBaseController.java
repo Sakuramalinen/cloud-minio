@@ -1,19 +1,10 @@
 package com.gp_01.file.controller;
 
 
-import com.gp_01.common.domain.dto.Result;
-import com.gp_01.file.domain.po.FileBase;
 import com.gp_01.file.service.IFileBaseService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.web.bind.annotation.*;
-
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
 
 /**
  * <p>
