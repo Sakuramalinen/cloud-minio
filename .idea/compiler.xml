@@ -7,15 +7,22 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="gp-common" />
         <module name="gp-gateway" />
+        <module name="gp-common" />
         <module name="gp-fileManage" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="gp-common-base" target="17" />
+      <module name="gp-common-mybatis" target="17" />
+      <module name="gp-file" target="17" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="gp-common" options="-parameters" />
+      <module name="gp-common-base" options="-parameters" />
+      <module name="gp-common-mybatis" options="-parameters" />
       <module name="gp-fileManage" options="-parameters" />
       <module name="gp-gateway" options="-parameters" />
     </option>

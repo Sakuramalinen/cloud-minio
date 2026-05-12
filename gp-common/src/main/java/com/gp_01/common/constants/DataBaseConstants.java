@@ -1,6 +1,6 @@
 package com.gp_01.common.constants;
 
-public interface DataBaseConstant {
+public interface DataBaseConstants {
 
     String CREATE_TIME = "createTime";
 

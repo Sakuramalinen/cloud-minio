@@ -2,7 +2,7 @@ spring:
   profiles:
     active: local
   application:
-    name: gp-gateway
+    name: gp-gateway-service
 server:
   port: 8100
 
@@ -12,12 +12,29 @@ spring:
   config:
     activate:
       on-profile: local
-
-
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: gp-fileManage-service
+              uri: lb://gp-fileManage-service
+              predicates:
+                - Path=/user-file/**
+    nacos:
+      server-addr: 10.211.55.14:8848
+      username: nacos
+      password: nacos
+      discovery:
+        group: gp-project
+        namespace: 5e09156e-dc92-4641-8aba-bc14328befa8
 server:
   port: 8100
 
-
+pg:
+  auth:
+    exclude-path:
+      - /register/*
 # 【dev环境】
 ---
 spring:

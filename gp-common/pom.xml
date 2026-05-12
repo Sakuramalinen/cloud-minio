@@ -3,19 +3,20 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>com.shenyongqi.pg</groupId>
+        <groupId>com.shenyongqi.gp</groupId>
         <artifactId>gp-parent</artifactId>
         <version>0.0.1</version>
     </parent>
     <artifactId>gp-common</artifactId>
 
-    <dependencies>
+ <dependencies>
 
-        <dependency>
-            <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-        </dependency>
-    </dependencies>
+     <dependency>
+         <groupId>com.baomidou</groupId>
+         <artifactId>mybatis-plus-core</artifactId>
+         <version>${mybatis-plus-spring-boot3-starter.version}</version>
+     </dependency>
+ </dependencies>
 
     <build>
         <plugins>
