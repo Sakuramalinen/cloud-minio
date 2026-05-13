@@ -7,7 +7,7 @@
 /dataSources/
 /dataSources.local.xml
 
-target/
+**/target
 *.class
 *.jar
 *.war

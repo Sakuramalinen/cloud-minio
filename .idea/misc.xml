@@ -7,6 +7,10 @@
         <option value="$PROJECT_DIR$/pom.xml" />
         <option value="$PROJECT_DIR$/gp-common/gp-common-base/pom.xml" />
         <option value="$PROJECT_DIR$/gp-common/gp-common-mybatis/pom.xml" />
+        <option value="$PROJECT_DIR$/gp-auth/pom.xml" />
+        <option value="$PROJECT_DIR$/gp-auth/gp-auth-recourse-sdk/pom.xml" />
+        <option value="$PROJECT_DIR$/gp-auth/gp-auth-service/pom.xml" />
+        <option value="$PROJECT_DIR$/gp-auth/gp-auth-gateway-sdk/pom.xml" />
       </list>
     </option>
     <option name="ignoredFiles">

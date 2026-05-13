@@ -23,7 +23,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnauthorizedException.class)
     public Result<Void> UnauthorizedExceptionHandle(UnauthorizedException e){
         log.error("未登录异常", e);
-        return Result.error(ResultCode.UNAUTHORIZED);
+        return Result.error(ResultCode.UNAUTHORIZED, e.getMessage());
     }
 
     @ExceptionHandler(CommonException.class)

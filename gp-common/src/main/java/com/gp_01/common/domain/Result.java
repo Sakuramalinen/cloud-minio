@@ -1,6 +1,7 @@
 package com.gp_01.common.domain;
 
 import com.gp_01.common.enums.ResultCode;
+import io.micrometer.common.util.StringUtils;
 import lombok.Data;
 
 import java.io.Serial;
@@ -49,7 +50,11 @@ public class Result<T> implements Serializable {
 
 
     public static Result<Void> error(ResultCode resultCode, String message) {
-        return build(resultCode.getCode(), resultCode.getMsg() + ":" +message,null);
+        if(StringUtils.isNotEmpty(message)){
+            return build(resultCode.getCode(), message,null);
+        } else{
+            return Result.error(resultCode);
+        }
     }
 
 }
