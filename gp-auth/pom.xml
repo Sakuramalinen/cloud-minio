@@ -7,8 +7,12 @@
         <artifactId>gp-parent</artifactId>
         <version>0.0.1</version>
     </parent>
-    <artifactId>gp-gateway</artifactId>
-
+    <artifactId>gp-auth</artifactId>
+    <packaging>pom</packaging>
+    <modules>
+        <module>gp-auth-service</module>
+        <module>gp-auth-recourse-sdk</module>
+    </modules>
 
     <dependencies>
         <dependency>
@@ -16,26 +20,6 @@
             <artifactId>gp-common</artifactId>
             <version>0.0.1</version>
         </dependency>
-        <dependency>
-            <groupId>com.shenyongqi.gp</groupId>
-            <artifactId>gp-auth-gateway-sdk</artifactId>
-            <version>0.0.1</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.alibaba.cloud</groupId>
-            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
-        </dependency>
-
     </dependencies>
 
     <build>

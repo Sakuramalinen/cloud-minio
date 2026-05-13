@@ -1,5 +1,6 @@
 package com.gp_01.gateway.filter;
 
+import com.gp_01.authsdk_gateway.utils.AuthUtil;
 import com.gp_01.common.domain.dto.LoginUserDTO;
 import com.gp_01.common.enums.ResultCode;
 import com.gp_01.common.exception.ForbiddenException;
@@ -29,6 +30,7 @@ public class AccountAuthGlobalFilter implements GlobalFilter, Ordered {
 
     private final AuthProperties authProperties;
     private final AntPathMatcher antPathMatcher = new AntPathMatcher();
+    private final AuthUtil authUtil;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -40,15 +42,12 @@ public class AccountAuthGlobalFilter implements GlobalFilter, Ordered {
         }
         //获取token请求头
         String token = request.getHeaders().getFirst(AUTHORIZATION_HEADER);
-
-        LoginUserDTO userInfo;
+        LoginUserDTO loginUserDTO;
         try {
-            //TODO 解析token 获取用户信息
-            userInfo = new LoginUserDTO();
-            userInfo.setUserId(101L);
+            loginUserDTO = authUtil.parseToken(token);
             //解析成功后，创建request写入请求头
             exchange.mutate().request(builder -> builder.
-                    header(USER_INFO_HEADER, userInfo.getUserId().toString())
+                    header(USER_INFO_HEADER, loginUserDTO.getUserId().toString())
                     .build());
 
         } catch (Exception e) {

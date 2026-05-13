@@ -13,7 +13,8 @@
     <modules>
         <module>gp-common</module>
         <module>gp-gateway</module>
-        <module>gp-fileManage</module>
+        <module>gp-filemanage</module>
+        <module>gp-auth</module>
     </modules>
 
     <parent>

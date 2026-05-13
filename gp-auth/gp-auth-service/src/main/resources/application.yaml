@@ -1,0 +1,25 @@
+spring:
+  profiles:
+    active: local
+  application:
+    name: gp-auth-service
+
+
+
+# [local环境]
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  cloud:
+    nacos:
+      server-addr: 10.211.55.14:8848
+      username: nacos
+      password: nacos
+      discovery:
+        namespace: 5e09156e-dc92-4641-8aba-bc14328befa8
+        group: gp-project
+
+server:
+  port: 8101
