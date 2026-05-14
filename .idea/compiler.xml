@@ -9,10 +9,10 @@
         <outputRelativeToContentRoot value="true" />
         <module name="gp-auth-gateway-sdk" />
         <module name="gp-auth-recourse-sdk" />
-        <module name="gp-filemanage" />
         <module name="gp-gateway" />
         <module name="gp-common" />
         <module name="gp-auth-service" />
+        <module name="gp-file-manager" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
@@ -30,7 +30,7 @@
       <module name="gp-common" options="-parameters" />
       <module name="gp-common-base" options="-parameters" />
       <module name="gp-common-mybatis" options="-parameters" />
-      <module name="gp-filemanage" options="-parameters" />
+      <module name="gp-file-manager" options="-parameters" />
       <module name="gp-gateway" options="-parameters" />
     </option>
   </component>
