@@ -3,6 +3,7 @@ package com.gp_01.file.controller;
 
 import com.gp_01.common.domain.Result;
 import com.gp_01.common.exception.ForbiddenException;
+import com.gp_01.file.domain.dto.ReNameDTO;
 import com.gp_01.file.domain.po.UserFile;
 import com.gp_01.file.service.IUserFileService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,14 +31,14 @@ public class UserFileController {
 
     private final IUserFileService userFileService;
 
-    @PostMapping("upload/file/{parentId}/{md5Hex}")
+    @PutMapping("upload/file/{parentId}/{md5Hex}")
     @Operation(summary = "上传文件")
     public Result<Void> uploadFile(@RequestPart MultipartFile file, @PathVariable Long parentId, @PathVariable String md5Hex) {
         userFileService.uploadFile(file, parentId, md5Hex);
         return Result.success();
     }
 
-    //TODO 上传文件夹
+    //TODO 上传文件夹，打成压缩包下载
     @PostMapping("upload/dir/")
     @Operation(summary = "上传文件夹")
     public Result<Void> uploadDir() {
@@ -54,8 +55,8 @@ public class UserFileController {
 
     @PutMapping()
     @Operation(summary = "文件重命名")
-    public Result<Void> reName(Long id, String fileName) {
-        userFileService.reName(id, fileName);
+    public Result<Void> reName(@RequestBody ReNameDTO reNameDTO) {
+        userFileService.reName(reNameDTO.getId(), reNameDTO.getFileName());
         return Result.success();
     }
 
@@ -72,6 +73,15 @@ public class UserFileController {
         List<UserFile> res = userFileService.listFileByParentId(parentId);
         return Result.success(res);
     }
+
+    //TODO 下载文件
+
+
+    //TODO 移动文件夹
+
+    //TODO 移动文件夹 需要查询当前文件夹目录，不查询文件
+
+    //TODO 文件分享功能
 
 
 }

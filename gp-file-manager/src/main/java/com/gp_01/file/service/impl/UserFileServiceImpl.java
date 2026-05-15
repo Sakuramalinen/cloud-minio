@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -98,8 +99,13 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         if (!Objects.equals(one.getUserId(), userId)) {
             throw new ForbiddenException("用户无权限操作");
         }
+
         //修改
-        lambdaUpdate().eq(UserFile::getId, id).set(UserFile::getFileName, fileName).update();
+        lambdaUpdate()
+                .eq(UserFile::getId, id)
+                .set(UserFile::getFileName, fileName)
+                .set(UserFile::getUpdateTime, LocalDateTime.now())
+                .update();
     }
 
     @Override
@@ -126,7 +132,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         userFileMapper.deleteFile(id, userId, timeStamp);
 
         //TODO 可以异步 物理文件表的该文件引用-1
-        if(!ids.isEmpty()){
+        if (!ids.isEmpty()) {
             fileBaseService.subtractRefCount(ids);
         }
     }
