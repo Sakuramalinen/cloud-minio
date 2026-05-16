@@ -1,6 +1,7 @@
 package com.gp_01.file.service.impl;
 
 import com.gp_01.common.context.UserContext;
+import com.gp_01.common.enums.FileTypeEnum;
 import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.common.exception.ForbiddenException;
 import com.gp_01.common.utils.FileTypeResolver;
@@ -10,7 +11,9 @@ import com.gp_01.file.mapper.UserFileMapper;
 import com.gp_01.file.service.IFileBaseService;
 import com.gp_01.file.service.IUserFileService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.gp_01.file.util.MinioUtils;
 import io.micrometer.common.util.StringUtils;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -153,6 +156,29 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         }
 
         return UserFileList;
+    }
+
+    @Override
+    public void downloadById(Long id, HttpServletResponse response) {
+        Long userId = UserContext.getUser();
+        UserFile file = super.lambdaQuery()
+                .eq(UserFile::getId, id)
+                .eq(UserFile::getUserId, userId)
+                .one();
+        if (file == null) {
+            throw new BadRequestException("文件不存在");
+        }
+        if (file.getFileType() == DIRECTORY) {
+            DirToZipDownload(id, userId, response);
+        } else {
+            fileBaseService.fileDownload(file, response);
+            System.out.println("dsa");
+        }
+    }
+
+    //TODO 文件夹下载
+    private void DirToZipDownload(Long id, Long userId, HttpServletResponse response) {
+        throw new BadRequestException("还不支持文件夹下载");
     }
 
     /**

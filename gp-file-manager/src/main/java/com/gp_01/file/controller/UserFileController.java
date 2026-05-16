@@ -2,12 +2,12 @@ package com.gp_01.file.controller;
 
 
 import com.gp_01.common.domain.Result;
-import com.gp_01.common.exception.ForbiddenException;
 import com.gp_01.file.domain.dto.ReNameDTO;
 import com.gp_01.file.domain.po.UserFile;
 import com.gp_01.file.service.IUserFileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,7 +38,7 @@ public class UserFileController {
         return Result.success();
     }
 
-    //TODO 上传文件夹，打成压缩包下载
+    //TODO 上传文件夹，
     @PostMapping("upload/dir/")
     @Operation(summary = "上传文件夹")
     public Result<Void> uploadDir() {
@@ -74,7 +74,12 @@ public class UserFileController {
         return Result.success(res);
     }
 
-    //TODO 下载文件
+    //TODO 下载文件/文件夹
+    @GetMapping("download/{id}")
+    @Operation(summary = "下载单个文件")
+    public void downloadById(@PathVariable Long id, HttpServletResponse response){
+        userFileService.downloadById(id, response);
+    }
 
 
     //TODO 移动文件夹
