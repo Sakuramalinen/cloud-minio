@@ -12,6 +12,7 @@
     <modules>
         <module>gp-auth-service</module>
         <module>gp-auth-recourse-sdk</module>
+        <module>gp-auth-gateway-sdk</module>
     </modules>
 
     <dependencies>

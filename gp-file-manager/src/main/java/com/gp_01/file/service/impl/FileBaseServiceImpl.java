@@ -1,21 +1,28 @@
 package com.gp_01.file.service.impl;
 
 import com.gp_01.common.exception.BadRequestException;
+import com.gp_01.common.exception.BizIllegalException;
 import com.gp_01.file.config.MinioConfig;
 import com.gp_01.file.domain.po.FileBase;
+import com.gp_01.file.domain.po.UserFile;
 import com.gp_01.file.mapper.FileBaseMapper;
 import com.gp_01.file.service.IFileBaseService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gp_01.file.util.MinioUtils;
 import io.micrometer.common.util.StringUtils;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+
+import static com.gp_01.file.constants.FileBaseConstants.FILE_DIR_FORMATTER;
 
 /**
  * <p>
@@ -55,7 +62,7 @@ public class FileBaseServiceImpl extends ServiceImpl<FileBaseMapper, FileBase> i
                 return one;
             }
             //准备基础信息
-            String dir = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+            String dir = LocalDateTime.now().format(DateTimeFormatter.ofPattern(FILE_DIR_FORMATTER));
             String fileSuffix = "";
             int i = originalFilename.lastIndexOf(".");
             if (i != -1) {
@@ -86,9 +93,9 @@ public class FileBaseServiceImpl extends ServiceImpl<FileBaseMapper, FileBase> i
 
     @Override
     public void subtractRefCount(List<Long> ids) {
-        if (!ids.isEmpty()){
+        if (!ids.isEmpty()) {
             Map<Long, Integer> map = new HashMap<>();
-            for(Long id : ids){
+            for (Long id : ids) {
                 Integer cnt = map.getOrDefault(id, 0);
                 map.put(id, cnt + 1);
             }
@@ -96,15 +103,50 @@ public class FileBaseServiceImpl extends ServiceImpl<FileBaseMapper, FileBase> i
 
                 super.lambdaUpdate()
                         .eq(FileBase::getId, entry.getKey())
-                        .setSql("ref_count = ref_count - " + entry.getValue() )
+                        .setSql("ref_count = ref_count - " + entry.getValue())
                         .update();
             }
         }
 
     }
 
+    @Override
+    public void fileDownload(UserFile userFile, HttpServletResponse response) {
+        //查询是否有该文件
+        FileBase fileBase = super.getById(userFile.getFileId());
+        if (fileBase == null){
+            log.error("file_base与user_file数据不一致");
+            throw new BadRequestException("文件不存在");
+        }
+        //设置响应信息
+        response.reset();
+        response.setHeader("Content-Disposition", "attachment;filename=" + userFile.getFileName());
+        response.setCharacterEncoding("utf-8");
+        response.setContentLengthLong(userFile.getFileSize());
+        response.setContentType(fileBase.getContentType());
+        //组装文件路径
+        String createTime = fileBase.getCreateTime().format(DateTimeFormatter.ofPattern(FILE_DIR_FORMATTER));
+        String path = getPath(createTime, fileBase.getFileMd5(), userFile.getFileSuffix());
+        //传输文件
+        try (InputStream inputStream = minioUtils.downloadFile(path);
+             BufferedInputStream bis = new BufferedInputStream(inputStream);
+        ) {
+            ServletOutputStream os = response.getOutputStream();
+            byte[] buff = new byte[1024 * 1024 * 10];
+            int len;
+            while ((len = bis.read(buff)) != -1) {
+                os.write(buff, 0, len);
+            }
+            os.flush();
+        } catch (Exception e) {
+            log.error("下载文件失败：", e);
+        }
+    }
 
-    private String getPath(String dir, String md5Hex, String fileSuffix) {
-        return dir + "/" + md5Hex + fileSuffix;
+
+    private String getPath(String createTime, String md5Hex, String fileSuffix) {
+
+
+        return createTime + "/" + md5Hex + fileSuffix;
     }
 }
