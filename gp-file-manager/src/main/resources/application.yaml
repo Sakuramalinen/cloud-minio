@@ -47,8 +47,9 @@ logging:
   level:
     com.gp_01.file: debug
 
-
-manual:
+gp:
+  file-manager:
+    recycle-save-day: 10
   minio:
     url: http:10.211.55.14:9000
     access-key: admin

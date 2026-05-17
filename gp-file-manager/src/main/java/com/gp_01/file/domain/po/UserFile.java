@@ -53,6 +53,9 @@ public class UserFile implements Serializable {
     @SchemaProperty(name = "文件大小字节")
     private Long fileSize;
 
+    @SchemaProperty(name = "MIME类型")
+    private String contentType;
+
     @SchemaProperty(name = "文件类型")
     private FileTypeEnum fileType;
     @TableField(fill = FieldFill.INSERT_UPDATE)

@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Data
 @Configuration
-@ConfigurationProperties(prefix = "manual.minio")
+@ConfigurationProperties(prefix = "gp.minio")
 public class MinioConfig {
     private String url;
     private String bucketName;

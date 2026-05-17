@@ -2,6 +2,7 @@ package com.gp_01.file.service;
 
 import com.gp_01.file.domain.po.UserFile;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.gp_01.file.domain.vo.ListRecycleBinVO;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -33,4 +34,18 @@ public interface IUserFileService extends IService<UserFile> {
      * @param response
      */
     void downloadById(Long id, HttpServletResponse response);
+
+    void previewFileById(String id, HttpServletResponse response);
+
+    /**
+     * 查看回收站
+     * @return
+     */
+    List<ListRecycleBinVO> listRecycleBin();
+
+    /**
+     * 从回收站恢复文件
+     * @param ids
+     */
+    void restoreFile(List<Long> ids);
 }

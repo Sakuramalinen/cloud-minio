@@ -112,18 +112,15 @@ public class FileBaseServiceImpl extends ServiceImpl<FileBaseMapper, FileBase> i
 
     @Override
     public void fileDownload(UserFile userFile, HttpServletResponse response) {
+        if (userFile == null) {
+            throw new BadRequestException("文件不存在");
+        }
         //查询是否有该文件
         FileBase fileBase = super.getById(userFile.getFileId());
         if (fileBase == null){
             log.error("file_base与user_file数据不一致");
             throw new BadRequestException("文件不存在");
         }
-        //设置响应信息
-        response.reset();
-        response.setHeader("Content-Disposition", "attachment;filename=" + userFile.getFileName());
-        response.setCharacterEncoding("utf-8");
-        response.setContentLengthLong(userFile.getFileSize());
-        response.setContentType(fileBase.getContentType());
         //组装文件路径
         String createTime = fileBase.getCreateTime().format(DateTimeFormatter.ofPattern(FILE_DIR_FORMATTER));
         String path = getPath(createTime, fileBase.getFileMd5(), userFile.getFileSuffix());
