@@ -2,8 +2,10 @@ package com.gp_01.file.controller;
 
 
 import com.gp_01.common.domain.Result;
+import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.file.domain.dto.ReNameDTO;
 import com.gp_01.file.domain.po.UserFile;
+import com.gp_01.file.domain.query.PageFilesQuery;
 import com.gp_01.file.domain.vo.ListRecycleBinVO;
 import com.gp_01.file.service.IUserFileService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -70,11 +72,10 @@ public class UserFileController {
         return Result.success();
     }
 
-    @GetMapping("list/{parentId}")
-    @Operation(summary = "查询当前目录")
-    public Result<List<UserFile>> listFileByParentId(@PathVariable Long parentId) {
-        List<UserFile> res = userFileService.listFileByParentId(parentId);
-        return Result.success(res);
+    @GetMapping("list")
+    @Operation(summary = "分页查询当前目录")
+    public PageResult<UserFile> queryFilesByParentId(PageFilesQuery pageFilesQuery) {
+        return userFileService.listFileByParentId(pageFilesQuery);
     }
 
     @GetMapping("download/{id}")

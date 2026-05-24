@@ -1,7 +1,9 @@
 package com.gp_01.file.service;
 
+import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.file.domain.po.UserFile;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.gp_01.file.domain.query.PageFilesQuery;
 import com.gp_01.file.domain.vo.ListRecycleBinVO;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,7 +28,7 @@ public interface IUserFileService extends IService<UserFile> {
 
     void deleteById(Long id);
 
-    List<UserFile> listFileByParentId(Long parentId);
+    PageResult<UserFile> listFileByParentId(PageFilesQuery pageFilesQuery);
 
     /**
      * 下载单个文件

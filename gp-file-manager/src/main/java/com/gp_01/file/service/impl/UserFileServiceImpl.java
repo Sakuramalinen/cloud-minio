@@ -1,6 +1,12 @@
 package com.gp_01.file.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.OrderItem;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
+import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gp_01.common.context.UserContext;
+import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.common.exception.ForbiddenException;
 import com.gp_01.common.utils.FileTypeResolver;
@@ -8,6 +14,7 @@ import com.gp_01.common.utils.TimeUtils;
 import com.gp_01.file.config.FileManagerServiceProperties;
 import com.gp_01.file.domain.po.FileBase;
 import com.gp_01.file.domain.po.UserFile;
+import com.gp_01.file.domain.query.PageFilesQuery;
 import com.gp_01.file.domain.vo.ListRecycleBinVO;
 import com.gp_01.file.mapper.UserFileMapper;
 import com.gp_01.file.service.IFileBaseService;
@@ -138,7 +145,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         //逻辑删除
         super.lambdaUpdate()
                 .eq(UserFile::getId, id)
-                .eq(UserFile::getUserId,userId)
+                .eq(UserFile::getUserId, userId)
                 .set(UserFile::getDeleted, timeStamp)
                 .update();
 
@@ -146,22 +153,24 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
     }
 
     @Override
-    public List<UserFile> listFileByParentId(Long parentId) {
+    public PageResult<UserFile> listFileByParentId(PageFilesQuery query) {
         Long userId = UserContext.getUser();
-        parentId = parentId == null ? 0 : parentId;
-        //条件查询
-        List<UserFile> UserFileList = lambdaQuery()
-                .eq(UserFile::getParentId, parentId)
+        //条件分页查询
+        Page<UserFile> page = lambdaQuery()
+                .eq(UserFile::getParentId, query.getId())
                 .eq(UserFile::getUserId, userId)
                 .eq(UserFile::getDeleted, 0)
-                .list();
+                .orderBy(true,true,UserFile::getFileType)
+                .orderBy(StringUtils.isNotEmpty(query.getSortBy()), query.getIsAsc(), UserFile.getSortByColumn(query.getSortBy()))
+                .page(query.toPage());
         //如果没数据返回空集合
-        if (UserFileList == null || UserFileList.isEmpty()) {
-            return List.of();
+        if (page.getRecords().isEmpty()) {
+            return PageResult.empty(page);
         }
 
-        return UserFileList;
+        return PageResult.of(page);
     }
+
 
     @Override
     public void downloadById(Long id, HttpServletResponse response) {
@@ -221,14 +230,14 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
     @Override
     public List<ListRecycleBinVO> listRecycleBin() {
         Long userId = UserContext.getUser();
-        //获得1小时前的时间戳
+        //TODO 提取到配置文件 获得30天的时间戳
         long limitTime = Instant.now().minusSeconds(60 * 60 * 24 * 30).toEpochMilli();
         //查数据库
         List<UserFile> list = lambdaQuery()
                 .eq(UserFile::getUserId, userId)
                 .ge(UserFile::getDeleted, limitTime)
                 .list();
-        if(list == null){
+        if (list == null) {
             return List.of();
         }
         List<ListRecycleBinVO> res = new ArrayList<>();
@@ -237,7 +246,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
             BeanUtils.copyProperties(userFile, vo);
             //设置独有属性
             LocalDateTime deleteTime = TimeUtils.milliToLocalDateTime(userFile.getDeleted());
-            long validDay = ChronoUnit.DAYS.between(deleteTime, LocalDateTime.now());
+            long validDay = 14 - ChronoUnit.DAYS.between(deleteTime, LocalDateTime.now());
             vo.setValidDay(validDay);
             vo.setDeleteTime(deleteTime);
             res.add(vo);
@@ -248,7 +257,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
 
     @Override
     public void restoreFile(List<Long> ids) {
-        if(ids == null){
+        if (ids == null) {
             throw new BadRequestException("请求参数为空");
         }
         Long userId = UserContext.getUser();
@@ -259,7 +268,6 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
                 .set(UserFile::getDeleted, 0)
                 .update();
     }
-
 
 
     //TODO 文件夹下载
