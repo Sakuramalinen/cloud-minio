@@ -122,6 +122,11 @@ public class UserFileController {
     public PageResult<PreviewImagesVO> listPreviewImagesByPage(PageParams params){
        return userFileService.pagePreviewImages(params);
     }
+    @GetMapping("list/type/{file-type}")
+    @Operation(summary = "根据文件类型分页查询")
+    public PageResult<UserFile> listFileByTypeAndPage(PageParams params, @PathVariable("file-type") Integer type){
+        return userFileService.listFileByTypeAndPage(params,type);
+    }
 
 
 

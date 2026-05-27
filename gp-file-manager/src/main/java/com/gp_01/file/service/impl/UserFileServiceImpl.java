@@ -97,7 +97,9 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         super.save(userFile);
 
         //TODO 异步制作缩略图
-        fileBaseService.uploadThumbnailsFile(fileBase);
+        if(fileBase.getContentType().split("/")[0].equals("image")){
+            fileBaseService.uploadThumbnailsFile(fileBase);
+        }
     }
 
     @Override
@@ -325,6 +327,24 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
             res.add(vo);
         }
         return new PageResult<>(page.getTotal(), page.getSize(), page.getCurrent(), res);
+    }
+
+    @Override
+    public PageResult<UserFile> listFileByTypeAndPage(PageParams params, Integer type) {
+        //获取登录用户
+        Long userId = UserContext.getUser();
+        //条件查询
+        Page<UserFile> page = lambdaQuery()
+                .eq(UserFile::getUserId, userId)
+                .eq(UserFile::getFileType, type)
+                .eq(UserFile::getDeleted, 0)
+                .page(params.toPage());
+
+        List<UserFile> records = page.getRecords();
+        if(records.isEmpty()){
+            return PageResult.empty(page);
+        }
+        return PageResult.of(page);
     }
 
 

@@ -57,4 +57,5 @@ public interface IUserFileService extends IService<UserFile> {
 
     PageResult<PreviewImagesVO> pagePreviewImages(PageParams params);
 
+    PageResult<UserFile> listFileByTypeAndPage(PageParams params, Integer type);
 }
