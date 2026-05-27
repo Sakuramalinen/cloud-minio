@@ -33,6 +33,7 @@
         <mybatis-plus-jsqlparser.versioin>3.5.14</mybatis-plus-jsqlparser.versioin>
         <swagger.version>4.5.0</swagger.version>
         <minio.version>8.6.0</minio.version>
+        <thumbnailator.version>0.4.21</thumbnailator.version>
     </properties>
 
     <dependencyManagement>
@@ -81,6 +82,12 @@
                 <artifactId>minio</artifactId>
                 <version>${minio.version}</version>
                 <scope>compile</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>net.coobird</groupId>
+                <artifactId>thumbnailator</artifactId>
+                <version>${thumbnailator.version}</version>
             </dependency>
 
         </dependencies>

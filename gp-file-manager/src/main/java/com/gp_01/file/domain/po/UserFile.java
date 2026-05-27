@@ -71,7 +71,8 @@ public class UserFile implements Serializable {
 
     @SchemaProperty(name = "逻辑删除 0存在 时间戳删除")
     private Long deleted;
-
+    //TODO 文件路径 userid/主键id/主键id
+    // String path
 
     public static SFunction<UserFile, ?> getSortByColumn(String sortBy){
         if(StringUtils.isEmpty(sortBy))return UserFile::getCreateTime;

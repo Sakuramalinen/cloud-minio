@@ -2,7 +2,7 @@ spring:
   profiles:
     active: local
   application:
-    name: gp-fileManage-service
+    name: gp-file-manage-service
 
 # 【dev环境】
 ---
@@ -55,6 +55,10 @@ gp:
     access-key: admin
     secret-key: Syq3186255
     bucket-name: local
+    temp-signed-url-expire-minute: 10
+  thumbnails:
+    width: 100
+
 
 
 server:

@@ -2,9 +2,17 @@ package com.gp_01.file.controller;
 
 
 import com.gp_01.file.service.IFileBaseService;
+import com.gp_01.file.util.FileThumbnailUtils;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * <p>
@@ -21,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 public class FileBaseController {
 
     private final IFileBaseService fileBaseService;
+    private final FileThumbnailUtils fileThumbnailUtils;
 
 
 //    @PostMapping("upload")
@@ -37,5 +46,13 @@ public class FileBaseController {
 //        String md5 = DigestUtils.md5Hex(file.getInputStream());
 //        return Result.success(md5);
 //    }
+
+
+    @GetMapping("test")
+    @Operation(summary = "test")
+    public void test(MultipartFile file, HttpServletResponse response){
+
+    }
+
 
 }
