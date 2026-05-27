@@ -1,13 +1,14 @@
 package com.gp_01.file.service.impl;
 
 import com.gp_01.common.exception.BadRequestException;
-import com.gp_01.common.exception.BizIllegalException;
+import com.gp_01.common.exception.CommonException;
 import com.gp_01.file.config.MinioConfig;
 import com.gp_01.file.domain.po.FileBase;
 import com.gp_01.file.domain.po.UserFile;
 import com.gp_01.file.mapper.FileBaseMapper;
 import com.gp_01.file.service.IFileBaseService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.gp_01.file.util.FileThumbnailUtils;
 import com.gp_01.file.util.MinioUtils;
 import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.ServletOutputStream;
@@ -23,6 +24,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static com.gp_01.file.constants.FileBaseConstants.FILE_DIR_FORMATTER;
+import static com.gp_01.file.constants.MinioConstants.ORIGINAL_BUCKET_NAME_PREFIX;
+import static com.gp_01.file.constants.MinioConstants.THUMBNAIL_BUCKET_NAME_PREFIX;
 
 /**
  * <p>
@@ -38,11 +41,12 @@ public class FileBaseServiceImpl extends ServiceImpl<FileBaseMapper, FileBase> i
 
     private final MinioConfig minioConfig;
     private final MinioUtils minioUtils;
+    private final FileThumbnailUtils thumbnailUtils;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     //TODO 定时扫描文件系统与数据库 清理垃圾
-    public FileBase uploadFile(MultipartFile file, String md5Hex) {
+    public FileBase uploadOriginalFile(MultipartFile file, String md5Hex) {
         if (file == null) {
             throw new BadRequestException("文件不能为空");
         }
@@ -68,17 +72,17 @@ public class FileBaseServiceImpl extends ServiceImpl<FileBaseMapper, FileBase> i
             if (i != -1) {
                 fileSuffix = file.getOriginalFilename().substring(i);
             }
-            String path = getPath(dir, md5Hex, fileSuffix);
-
+            String OriginalPath = getOriginalPath(dir, md5Hex, fileSuffix);
+            String objPath = getObjectPath(dir, md5Hex, fileSuffix);
             //写入文件系统minio
             //TODO 通过设计模式 实现零侵入改变存储方式
-            minioUtils.uploadFile(file, path);
+            minioUtils.uploadOriginalFile(file, OriginalPath);
             //组装数据库信息
             FileBase fileBase = new FileBase();
             fileBase.setFileSize(file.getSize());
             fileBase.setContentType(file.getContentType());
             fileBase.setBucketName(minioConfig.getBucketName());
-            fileBase.setObjectPath(path);
+            fileBase.setObjectPath(objPath);
             fileBase.setFileMd5(md5Hex);
             fileBase.setRefCount(1);
             //写入数据库
@@ -89,6 +93,25 @@ public class FileBaseServiceImpl extends ServiceImpl<FileBaseMapper, FileBase> i
             throw new RuntimeException("文件上传失败", e);
         }
 
+    }
+
+    @Override
+    public void uploadThumbnailsFile(FileBase fileBase) {
+        //判断是不是图片
+        String type = getContentType(fileBase.getContentType());
+        if (type.equals("image")) {
+            //获得源文件输入流
+            InputStream inputStream = minioUtils.downloadFile(getOriginalPath(fileBase.getObjectPath()));
+            //转换成缩略图
+            byte[] thumbnailBytes = thumbnailUtils.createThumbnailBytes(inputStream);
+            if(thumbnailBytes == null)return;
+            //拼接路径
+            String path = getThumbnailsPath(fileBase.getObjectPath());
+            //存到minio
+            minioUtils.uploadOriginalFile(new ByteArrayInputStream(thumbnailBytes), path, fileBase.getContentType(), thumbnailBytes.length);
+        } else if(type.equals("video")){
+             throw new CommonException("目前不支持视频");
+        }
     }
 
     @Override
@@ -112,21 +135,17 @@ public class FileBaseServiceImpl extends ServiceImpl<FileBaseMapper, FileBase> i
 
     @Override
     public void fileDownload(UserFile userFile, HttpServletResponse response) {
+        if (userFile == null) {
+            throw new BadRequestException("文件不存在");
+        }
         //查询是否有该文件
         FileBase fileBase = super.getById(userFile.getFileId());
-        if (fileBase == null){
+        if (fileBase == null) {
             log.error("file_base与user_file数据不一致");
             throw new BadRequestException("文件不存在");
         }
-        //设置响应信息
-        response.reset();
-        response.setHeader("Content-Disposition", "attachment;filename=" + userFile.getFileName());
-        response.setCharacterEncoding("utf-8");
-        response.setContentLengthLong(userFile.getFileSize());
-        response.setContentType(fileBase.getContentType());
         //组装文件路径
-        String createTime = fileBase.getCreateTime().format(DateTimeFormatter.ofPattern(FILE_DIR_FORMATTER));
-        String path = getPath(createTime, fileBase.getFileMd5(), userFile.getFileSuffix());
+        String path = getOriginalPath(fileBase.getObjectPath());
         //传输文件
         try (InputStream inputStream = minioUtils.downloadFile(path);
              BufferedInputStream bis = new BufferedInputStream(inputStream);
@@ -143,10 +162,44 @@ public class FileBaseServiceImpl extends ServiceImpl<FileBaseMapper, FileBase> i
         }
     }
 
+    @Override
+    public String getThumbnailsPath(String objectPath) {
+        return THUMBNAIL_BUCKET_NAME_PREFIX + "/" + objectPath;
+    }
+    @Override
+    public String getOriginalPath(String objectPath) {
+        return ORIGINAL_BUCKET_NAME_PREFIX + "/" + objectPath;
+    }
 
-    private String getPath(String createTime, String md5Hex, String fileSuffix) {
+    @Override
+    public String[] getTempSignedUrl(String objectPath, Integer expireMinute) {
+        String[] res = new String[2];
+        //分别获取路径
+        String originalPath = getOriginalPath(objectPath);
+        String thumbnailPath = getThumbnailsPath(objectPath);
+        //获取url
+        res[0] = minioUtils.getTempSignedUrl(originalPath, expireMinute);
+        res[1] = minioUtils.getTempSignedUrl(thumbnailPath,expireMinute);
+
+        return res;
+    }
 
 
+    private String getObjectPath(String createTime, String md5Hex, String fileSuffix) {
         return createTime + "/" + md5Hex + fileSuffix;
     }
+
+    private String getOriginalPath(String createTime, String md5Hex, String fileSuffix) {
+        return ORIGINAL_BUCKET_NAME_PREFIX + "/" + getObjectPath(createTime, md5Hex, fileSuffix);
+    }
+
+    private String getThumbnailsPath(String createTime, String md5Hex, String fileSuffix) {
+        return THUMBNAIL_BUCKET_NAME_PREFIX + "/" + getObjectPath(createTime, md5Hex, fileSuffix);
+    }
+
+    private String getContentType(String contentType) {
+        if (contentType.isEmpty()) return "";
+        return contentType.split("/")[0];
+    }
+
 }

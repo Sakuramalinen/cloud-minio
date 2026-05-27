@@ -17,10 +17,11 @@ spring:
       server:
         webflux:
           routes:
-            - id: gp-fileManage-service
-              uri: lb://gp-fileManage-service
+            - id: gp-file-manage-service
+              uri: lb://gp-file-manage-service
               predicates:
-                - Path=/user-file/**
+                - Path=/user-file/**,/file-base/**
+
     nacos:
       server-addr: 10.211.55.14:8848
       username: nacos

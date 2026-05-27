@@ -3,6 +3,7 @@ package com.gp_01.file.util;
 import com.gp_01.file.config.MinioConfig;
 import io.minio.*;
 import io.minio.errors.*;
+import io.minio.http.Method;
 import io.minio.messages.Bucket;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +14,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
@@ -83,20 +86,31 @@ public class MinioUtils {
         }
     }
 
+
+    public void uploadOriginalFile(MultipartFile file, String fileName) {
+        try {
+            uploadOriginalFile(file.getInputStream(), fileName, file.getContentType(), file.getSize());
+        } catch (Exception e) {
+            log.error("上传文件失败：", e);
+            throw new RuntimeException(e);
+        }
+    }
+
     /**
      * 文件上传
      * TODO 大文件断点续传
      *
-     * @param file
+     * @param inputStream
      * @param fileName
+     * @param contentType
+     * @param size
      */
-    public void uploadFile(MultipartFile file, String fileName) {
+    public void uploadOriginalFile(InputStream inputStream, String fileName, String contentType, long size) {
         try {
-            InputStream inputStream = file.getInputStream();
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(minioConfig.getBucketName())
-                    .contentType(file.getContentType())
-                    .stream(inputStream, file.getSize(), -1)
+                    .contentType(contentType)
+                    .stream(inputStream, size, -1)
                     .object(fileName)
                     .build());
         } catch (Exception e) {
@@ -104,6 +118,7 @@ public class MinioUtils {
             throw new RuntimeException(e);
         }
     }
+
 
     /**
      * 文件下载
@@ -124,9 +139,10 @@ public class MinioUtils {
 
     /**
      * 删除文件
+     *
      * @param fileName
      */
-    public void removeFile(String fileName){
+    public void removeFile(String fileName) {
         try {
             minioClient.removeObject(RemoveObjectArgs.builder()
                     .bucket(minioConfig.getBucketName())
@@ -138,4 +154,25 @@ public class MinioUtils {
         }
     }
 
+    /**
+     * 批量获取临时签名url
+     *
+     * @param path
+     * @param expireMinute
+     * @return
+     */
+    public String getTempSignedUrl(String path, int expireMinute) {
+        try {
+            String url = minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+                    .method(Method.GET)
+                    .bucket(minioConfig.getBucketName())
+                    .object(path)
+                    .expiry(expireMinute, TimeUnit.MINUTES)
+                    .build());
+            return url;
+        } catch (Exception e) {
+            log.error("获取临时签名错误", e);
+            throw new RuntimeException(e);
+        }
+    }
 }

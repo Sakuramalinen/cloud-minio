@@ -4,6 +4,7 @@ import com.gp_01.file.domain.po.UserFile;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * <p>
@@ -28,4 +29,11 @@ public interface UserFileMapper extends BaseMapper<UserFile> {
      * @return
      */
     ArrayList<Long> listFileIdByParentId(Long id, Long userId);
+
+    /**
+     * 批量查询文件夹下所有文件id
+     * @param dirIds
+     * @return
+     */
+    List<Long> listIdsByDirIds(List<Long> dirIds);
 }

@@ -1,7 +1,13 @@
 package com.gp_01.file.service;
 
+import com.gp_01.common.domain.Result;
+import com.gp_01.common.domain.dto.PageResult;
+import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.file.domain.po.UserFile;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.gp_01.file.domain.query.PageFilesQuery;
+import com.gp_01.file.domain.vo.ListRecycleBinVO;
+import com.gp_01.file.domain.vo.PreviewImagesVO;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -25,7 +31,7 @@ public interface IUserFileService extends IService<UserFile> {
 
     void deleteById(Long id);
 
-    List<UserFile> listFileByParentId(Long parentId);
+    PageResult<UserFile> listFileByParentId(PageFilesQuery pageFilesQuery);
 
     /**
      * 下载单个文件
@@ -33,4 +39,22 @@ public interface IUserFileService extends IService<UserFile> {
      * @param response
      */
     void downloadById(Long id, HttpServletResponse response);
+
+    void previewFileById(String id, HttpServletResponse response);
+
+    /**
+     * 查看回收站
+     * @return
+     */
+    List<ListRecycleBinVO> listRecycleBin();
+
+    /**
+     * 从回收站恢复文件
+     * @param ids
+     */
+    void restoreFile(List<Long> ids);
+
+
+    PageResult<PreviewImagesVO> pagePreviewImages(PageParams params);
+
 }

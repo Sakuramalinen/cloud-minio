@@ -43,7 +43,7 @@ public class FileBase implements Serializable {
     @SchemaProperty(name = "桶名")
     private String bucketName;
 
-    @SchemaProperty(name = "存储路径")
+    @SchemaProperty(name = "源文件存储路径")
     private String objectPath;
 
     @SchemaProperty(name = "文件MD5值")

@@ -6,6 +6,8 @@ import java.io.Serial;
 import java.time.LocalDateTime;
 import java.io.Serializable;
 
+import com.baomidou.mybatisplus.core.toolkit.StringUtils;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.gp_01.common.enums.FileTypeEnum;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.SchemaProperty;
@@ -53,8 +55,12 @@ public class UserFile implements Serializable {
     @SchemaProperty(name = "文件大小字节")
     private Long fileSize;
 
+    @SchemaProperty(name = "MIME类型")
+    private String contentType;
+
     @SchemaProperty(name = "文件类型")
     private FileTypeEnum fileType;
+
     @TableField(fill = FieldFill.INSERT_UPDATE)
     @SchemaProperty(name = "创建时间")
     private LocalDateTime createTime;
@@ -65,6 +71,16 @@ public class UserFile implements Serializable {
 
     @SchemaProperty(name = "逻辑删除 0存在 时间戳删除")
     private Long deleted;
+    //TODO 文件路径 userid/主键id/主键id
+    // String path
 
-
+    public static SFunction<UserFile, ?> getSortByColumn(String sortBy){
+        if(StringUtils.isEmpty(sortBy))return UserFile::getCreateTime;
+        return switch(sortBy){
+            case "updateTime" -> UserFile::getUpdateTime;
+            case "fileName" -> UserFile::getFileName;
+            case "fileSize" -> UserFile::getFileSize;
+            default  -> UserFile::getCreateTime;
+        };
+    }
 }

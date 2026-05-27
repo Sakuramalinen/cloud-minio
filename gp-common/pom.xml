@@ -16,6 +16,15 @@
          <artifactId>mybatis-plus-core</artifactId>
          <version>${mybatis-plus-spring-boot3-starter.version}</version>
      </dependency>
+     <dependency>
+         <groupId>com.baomidou</groupId>
+         <artifactId>mybatis-plus-extension</artifactId>
+         <version>${mybatis-plus-spring-boot3-starter.version}</version>
+     </dependency>
+     <dependency>
+         <groupId>com.baomidou</groupId>
+         <artifactId>mybatis-plus-jsqlparser</artifactId>
+     </dependency>
  </dependencies>
 
     <build>
