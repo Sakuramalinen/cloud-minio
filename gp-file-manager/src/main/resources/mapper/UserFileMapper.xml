@@ -42,6 +42,13 @@
             <otherwise> DESC</otherwise>
         </choose>
     </select>
+    <select id="existsSameFileName" resultType="java.lang.Integer">
+        select count(*)
+        from user_file
+        where user_id = #{userId}
+          and parent_id = #{targetId}
+          and file_name = (select uf.file_name from user_file uf where id = #{id});
+    </select>
 
 
 </mapper>

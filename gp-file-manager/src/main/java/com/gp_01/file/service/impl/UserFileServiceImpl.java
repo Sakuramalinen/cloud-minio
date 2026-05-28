@@ -6,6 +6,7 @@ import com.gp_01.common.context.UserContext;
 import com.gp_01.common.domain.Result;
 import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
+import com.gp_01.common.enums.FileTypeEnum;
 import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.common.exception.ForbiddenException;
 import com.gp_01.common.utils.FileTypeResolver;
@@ -132,13 +133,26 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         if (!Objects.equals(one.getUserId(), userId)) {
             throw new ForbiddenException("用户无权限操作");
         }
-
+        //判断是否有同名文件
+        boolean exist = existSameFileName(userId, one.getParentId(), fileName);
+        if (exist){
+            throw new BadRequestException("该目录存在同名文件");
+        }
         //修改
         lambdaUpdate()
                 .eq(UserFile::getId, id)
                 .set(UserFile::getFileName, fileName)
                 .set(UserFile::getUpdateTime, LocalDateTime.now())
                 .update();
+    }
+
+    private boolean existSameFileName(Long userid, Long parentId, String fileName) {
+        UserFile one = lambdaQuery()
+                .eq(UserFile::getUserId, userid)
+                .eq(UserFile::getParentId, parentId)
+                .eq(UserFile::getFileName, fileName)
+                .one();
+        return one != null;
     }
 
     @Override
@@ -347,6 +361,42 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
             return PageResult.empty(page);
         }
         return PageResult.of(page);
+    }
+
+    @Override
+    public void moveFile(Long fileId, Long targetId) {
+        Long userId = UserContext.getUser();
+        UserFile one = super.lambdaQuery()
+                .eq(UserFile::getId, fileId)
+                .eq(UserFile::getUserId, userId)
+                .eq(UserFile::getDeleted, 0)
+                .one();
+        if (one == null) {
+            throw new BadRequestException("文件不存在");
+        }
+        //判断目标目录上有没有同名文件
+        Integer cnt = userFileMapper.existsSameFileName(fileId, userId, targetId);
+        if(cnt != 0){
+            throw new BadRequestException("目标目录存在同名文件");
+        }
+        //更改该文件的文件夹id
+        one.setParentId(targetId);
+        super.updateById(one);
+    }
+
+    @Override
+    public List<UserFile> listDirByParentId(Long parentId) {
+        Long userId = UserContext.getUser();
+        List<UserFile> list = super.lambdaQuery()
+                .eq(UserFile::getUserId, userId)
+                .eq(UserFile::getDeleted, 0)
+                .eq(UserFile::getParentId, parentId)
+                .eq(UserFile::getFileType, DIRECTORY)
+                .list();
+        if (list == null) {
+            return List.of();
+        }
+        return list;
     }
 
 

@@ -6,6 +6,9 @@ import org.apache.ibatis.reflection.MetaObject;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+
+import static com.gp_01.common.constants.DataBaseConstants.UPDATE_TIME;
+
 @Component
 public class BaseMetaObjectHandler implements MetaObjectHandler {
     @Override
@@ -18,6 +21,7 @@ public class BaseMetaObjectHandler implements MetaObjectHandler {
 
     @Override
     public void updateFill(MetaObject metaObject) {
+        metaObject.setValue(UPDATE_TIME, null);
         setUpdateTime(metaObject);
     }
 
@@ -26,6 +30,6 @@ public class BaseMetaObjectHandler implements MetaObjectHandler {
         this.strictInsertFill(metaObject, DataBaseConstants.CREATE_TIME, LocalDateTime::now, LocalDateTime.class);
     }
     private void setUpdateTime(MetaObject metaObject){
-        this.strictUpdateFill(metaObject, DataBaseConstants.UPDATE_TIME, LocalDateTime::now, LocalDateTime.class);
+        this.strictUpdateFill(metaObject, UPDATE_TIME, LocalDateTime::now, LocalDateTime.class);
     }
 }

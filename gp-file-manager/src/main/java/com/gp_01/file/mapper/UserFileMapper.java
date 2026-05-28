@@ -41,4 +41,8 @@ public interface UserFileMapper extends BaseMapper<UserFile> {
     List<Long> listIdsByDirIds(List<Long> dirIds);
 
     Page<UserFile> listFileByPage(Page<UserFile> page, @Param("query")PageFilesQuery query, @Param("userId") Long userId);
+
+    Integer existsSameFileName(Long id, Long userId, Long targetId);
+
+
 }
