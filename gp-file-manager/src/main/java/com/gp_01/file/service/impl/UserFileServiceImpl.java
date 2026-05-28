@@ -169,13 +169,15 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
     public PageResult<UserFile> listFileByParentId(PageFilesQuery query) {
         Long userId = UserContext.getUser();
         //条件分页查询
-        Page<UserFile> page = lambdaQuery()
-                .eq(UserFile::getParentId, query.getId())
-                .eq(UserFile::getUserId, userId)
-                .eq(UserFile::getDeleted, 0)
-                .orderBy(true, true, UserFile::getFileType)
-                .orderBy(StringUtils.isNotEmpty(query.getSortBy()), query.getIsAsc(), UserFile.getSortByColumn(query.getSortBy()))
-                .page(query.toPage());
+//        Page<UserFile> page = lambdaQuery()
+//                .eq(UserFile::getFileId, query.getId())
+//                .eq(UserFile::getUserId, userId)
+//                .eq(UserFile::getDeleted, 0)
+//                .orderBy(StringUtils.isNotEmpty(query.getSortBy()), query.getIsAsc(), UserFile.getSortByColumn(query.getSortBy()))
+//                .page(query.toPage());
+        Page<UserFile> page = query.toPage();
+        //条件分页查询
+        userFileMapper.listFileByPage(page, query, userId);
         //如果没数据返回空集合
         if (page.getRecords().isEmpty()) {
             return PageResult.empty(page);

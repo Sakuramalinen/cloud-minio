@@ -24,6 +24,24 @@
         )
         select file_id from tree where file_type != 0;
     </select>
+    <select id="listFileByPage" resultType="com.gp_01.file.domain.po.UserFile">
+        select *
+        from user_file
+        where parent_id = #{query.id}
+        and user_id = #{userId}
+        and deleted = 0
+        order by IF(file_type = 0, 0, 1) ASC ,
+        <choose>
+            <when test="query.sortBy == 'fileSize'"> file_size</when>
+            <when test="query.sortBy == 'fileName'"> file_name</when>
+            <when test="query.sortBy == 'updateTime'"> update_time</when>
+            <otherwise>create_time</otherwise>
+        </choose>
+        <choose>
+            <when test="query.isAsc"> ASC</when>
+            <otherwise> DESC</otherwise>
+        </choose>
+    </select>
 
 
 </mapper>
