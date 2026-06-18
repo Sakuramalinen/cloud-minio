@@ -57,4 +57,9 @@ public interface IUserFileService extends IService<UserFile> {
 
     PageResult<PreviewImagesVO> pagePreviewImages(PageParams params);
 
+    PageResult<UserFile> listFileByTypeAndPage(PageParams params, Integer type);
+
+    void moveFile(Long fileId, Long targetId);
+
+    List<UserFile> listDirByParentId(Long id);
 }

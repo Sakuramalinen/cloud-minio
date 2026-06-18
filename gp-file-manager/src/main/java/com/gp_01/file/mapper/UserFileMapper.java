@@ -1,7 +1,10 @@
 package com.gp_01.file.mapper;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gp_01.file.domain.po.UserFile;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.gp_01.file.domain.query.PageFilesQuery;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,4 +39,10 @@ public interface UserFileMapper extends BaseMapper<UserFile> {
      * @return
      */
     List<Long> listIdsByDirIds(List<Long> dirIds);
+
+    Page<UserFile> listFileByPage(Page<UserFile> page, @Param("query")PageFilesQuery query, @Param("userId") Long userId);
+
+    Integer existsSameFileName(Long id, Long userId, Long targetId);
+
+
 }

@@ -4,6 +4,7 @@ package com.gp_01.file.controller;
 import com.gp_01.common.domain.Result;
 import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
+import com.gp_01.file.domain.dto.MoveFileDTO;
 import com.gp_01.file.domain.dto.ReNameDTO;
 import com.gp_01.file.domain.po.UserFile;
 import com.gp_01.file.domain.query.PageFilesQuery;
@@ -110,17 +111,29 @@ public class UserFileController {
 //        return Result.success();
 //    }
 
-    //TODO 移动文件夹
-
-    //TODO 移动文件夹 需要查询当前文件夹目录，不查询文件
-
+    @PutMapping("move")
+    @Operation(summary = "移动文件或文件夹")
+    public Result<Void> moveFile(@RequestBody MoveFileDTO dto){
+        userFileService.moveFile(dto.getFileId(), dto.getTargetId());
+        return Result.success();
+    }
+    @GetMapping("dir/list/{id}")
+    @Operation(summary = "查询文件夹目录")
+    public Result<List<UserFile>> listDirByParentId(@PathVariable Long id){
+        List<UserFile> res = userFileService.listDirByParentId(id);
+        return Result.success(res);
+    }
     //TODO 文件分享功能
 
-    //TODO 预览所有图片
     @GetMapping("preview/images/list")
     @Operation(summary = "分页预览照片")
     public PageResult<PreviewImagesVO> listPreviewImagesByPage(PageParams params){
        return userFileService.pagePreviewImages(params);
+    }
+    @GetMapping("list/type/{file-type}")
+    @Operation(summary = "根据文件类型分页查询")
+    public PageResult<UserFile> listFileByTypeAndPage(PageParams params, @PathVariable("file-type") Integer type){
+        return userFileService.listFileByTypeAndPage(params,type);
     }
 
 

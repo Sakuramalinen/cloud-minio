@@ -6,6 +6,7 @@ import com.gp_01.common.context.UserContext;
 import com.gp_01.common.domain.Result;
 import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
+import com.gp_01.common.enums.FileTypeEnum;
 import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.common.exception.ForbiddenException;
 import com.gp_01.common.utils.FileTypeResolver;
@@ -97,7 +98,9 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         super.save(userFile);
 
         //TODO 异步制作缩略图
-        fileBaseService.uploadThumbnailsFile(fileBase);
+        if(fileBase.getContentType().split("/")[0].equals("image")){
+            fileBaseService.uploadThumbnailsFile(fileBase);
+        }
     }
 
     @Override
@@ -130,13 +133,26 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         if (!Objects.equals(one.getUserId(), userId)) {
             throw new ForbiddenException("用户无权限操作");
         }
-
+        //判断是否有同名文件
+        boolean exist = existSameFileName(userId, one.getParentId(), fileName);
+        if (exist){
+            throw new BadRequestException("该目录存在同名文件");
+        }
         //修改
         lambdaUpdate()
                 .eq(UserFile::getId, id)
                 .set(UserFile::getFileName, fileName)
                 .set(UserFile::getUpdateTime, LocalDateTime.now())
                 .update();
+    }
+
+    private boolean existSameFileName(Long userid, Long parentId, String fileName) {
+        UserFile one = lambdaQuery()
+                .eq(UserFile::getUserId, userid)
+                .eq(UserFile::getParentId, parentId)
+                .eq(UserFile::getFileName, fileName)
+                .one();
+        return one != null;
     }
 
     @Override
@@ -167,13 +183,15 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
     public PageResult<UserFile> listFileByParentId(PageFilesQuery query) {
         Long userId = UserContext.getUser();
         //条件分页查询
-        Page<UserFile> page = lambdaQuery()
-                .eq(UserFile::getParentId, query.getId())
-                .eq(UserFile::getUserId, userId)
-                .eq(UserFile::getDeleted, 0)
-                .orderBy(true, true, UserFile::getFileType)
-                .orderBy(StringUtils.isNotEmpty(query.getSortBy()), query.getIsAsc(), UserFile.getSortByColumn(query.getSortBy()))
-                .page(query.toPage());
+//        Page<UserFile> page = lambdaQuery()
+//                .eq(UserFile::getFileId, query.getId())
+//                .eq(UserFile::getUserId, userId)
+//                .eq(UserFile::getDeleted, 0)
+//                .orderBy(StringUtils.isNotEmpty(query.getSortBy()), query.getIsAsc(), UserFile.getSortByColumn(query.getSortBy()))
+//                .page(query.toPage());
+        Page<UserFile> page = query.toPage();
+        //条件分页查询
+        userFileMapper.listFileByPage(page, query, userId);
         //如果没数据返回空集合
         if (page.getRecords().isEmpty()) {
             return PageResult.empty(page);
@@ -325,6 +343,60 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
             res.add(vo);
         }
         return new PageResult<>(page.getTotal(), page.getSize(), page.getCurrent(), res);
+    }
+
+    @Override
+    public PageResult<UserFile> listFileByTypeAndPage(PageParams params, Integer type) {
+        //获取登录用户
+        Long userId = UserContext.getUser();
+        //条件查询
+        Page<UserFile> page = lambdaQuery()
+                .eq(UserFile::getUserId, userId)
+                .eq(UserFile::getFileType, type)
+                .eq(UserFile::getDeleted, 0)
+                .page(params.toPage());
+
+        List<UserFile> records = page.getRecords();
+        if(records.isEmpty()){
+            return PageResult.empty(page);
+        }
+        return PageResult.of(page);
+    }
+
+    @Override
+    public void moveFile(Long fileId, Long targetId) {
+        Long userId = UserContext.getUser();
+        UserFile one = super.lambdaQuery()
+                .eq(UserFile::getId, fileId)
+                .eq(UserFile::getUserId, userId)
+                .eq(UserFile::getDeleted, 0)
+                .one();
+        if (one == null) {
+            throw new BadRequestException("文件不存在");
+        }
+        //判断目标目录上有没有同名文件
+        Integer cnt = userFileMapper.existsSameFileName(fileId, userId, targetId);
+        if(cnt != 0){
+            throw new BadRequestException("目标目录存在同名文件");
+        }
+        //更改该文件的文件夹id
+        one.setParentId(targetId);
+        super.updateById(one);
+    }
+
+    @Override
+    public List<UserFile> listDirByParentId(Long parentId) {
+        Long userId = UserContext.getUser();
+        List<UserFile> list = super.lambdaQuery()
+                .eq(UserFile::getUserId, userId)
+                .eq(UserFile::getDeleted, 0)
+                .eq(UserFile::getParentId, parentId)
+                .eq(UserFile::getFileType, DIRECTORY)
+                .list();
+        if (list == null) {
+            return List.of();
+        }
+        return list;
     }
 
 
