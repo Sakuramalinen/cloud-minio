@@ -1,0 +1,67 @@
+package com.gp_01.auth.utils;
+
+import com.gp_01.auth.config.JWTProperties;
+import com.gp_01.common.exception.BadRequestException;
+import com.gp_01.common.exception.UnauthorizedException;
+import com.gp_01.model.domain.po.User;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+@RequiredArgsConstructor
+@Component
+public class JWTUtils {
+
+    private final JWTProperties jwtProperties;
+
+    private SecretKey key;
+
+    @PostConstruct
+    public void init() {
+        this.key = Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
+    }
+
+    public String create(User user) {
+        //准备token载荷数据
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", user.getId());
+
+        long now = System.currentTimeMillis();
+        //计算过期时间
+        Date expirationData = new Date(now + jwtProperties.getExpire() * 1000);
+        return Jwts.builder()
+                .claims(claims) //载荷
+                .expiration(expirationData)   // 过期时间
+                .signWith(key)
+                .compact();
+
+    }
+
+    public Claims parse(String token) {
+        Claims payload = null;
+        try {
+            payload = Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+        } catch (Exception e) {
+            throw new UnauthorizedException("登录失败");
+        }
+        if(payload.getExpiration().before(new Date())){
+            throw new BadRequestException("登录过期");
+        }
+        return payload;
+    }
+}

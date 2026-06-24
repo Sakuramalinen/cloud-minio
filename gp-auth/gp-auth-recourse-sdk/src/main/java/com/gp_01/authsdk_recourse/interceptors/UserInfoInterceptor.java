@@ -2,10 +2,13 @@ package com.gp_01.authsdk_recourse.interceptors;
 
 import com.gp_01.common.constants.AuthConstants;
 import com.gp_01.common.context.UserContext;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.servlet.HandlerInterceptor;
+
+
 
 @Slf4j
 public class UserInfoInterceptor implements HandlerInterceptor {
@@ -21,9 +24,9 @@ public class UserInfoInterceptor implements HandlerInterceptor {
      * @throws Exception
      */
     @Override
-    public boolean preHandle(jakarta.servlet.http.HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 
-        String authHeader = request.getHeader(AuthConstants.AUTHORIZATION_HEADER);
+        String authHeader = request.getHeader(AuthConstants.USER_INFO_HEADER);
         if (authHeader == null) {
             return true;
         }

@@ -7,12 +7,15 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="gp-auth-gateway-sdk" />
         <module name="gp-auth-recourse-sdk" />
+        <module name="gp-user-api" />
+        <module name="gp-file-manager" />
+        <module name="gp-user-model" />
+        <module name="gp-user-service" />
+        <module name="gp-auth-gateway-sdk" />
         <module name="gp-gateway" />
         <module name="gp-common" />
         <module name="gp-auth-service" />
-        <module name="gp-file-manager" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
@@ -33,6 +36,10 @@
       <module name="gp-common-mybatis" options="-parameters" />
       <module name="gp-file-manager" options="-parameters" />
       <module name="gp-gateway" options="-parameters" />
+      <module name="gp-user" options="" />
+      <module name="gp-user-api" options="-parameters" />
+      <module name="gp-user-model" options="-parameters" />
+      <module name="gp-user-service" options="-parameters" />
     </option>
   </component>
 </project>

@@ -3,18 +3,19 @@ package com.gp_01.auth;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.ConfigurableEnvironment;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-
+@EnableFeignClients(basePackages = {"com.gp_01.api.client"})
 @SpringBootApplication
 @Slf4j
-public class GpAuthServiceApplication {
+public class GpAuthApplication {
 
     public static void main(String[] args) throws UnknownHostException {
-        ConfigurableApplicationContext run = SpringApplication.run(GpAuthServiceApplication.class, args);
+        ConfigurableApplicationContext run = SpringApplication.run(GpAuthApplication.class, args);
         ConfigurableEnvironment environment = run.getEnvironment();
         String protocol = "http";
         log.info("--/\n----------------------------------------------------------------------\n\t" +

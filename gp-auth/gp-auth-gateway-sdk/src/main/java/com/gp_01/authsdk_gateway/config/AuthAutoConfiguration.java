@@ -9,7 +9,12 @@ import org.springframework.stereotype.Component;
 public class AuthAutoConfiguration {
 
     @Bean
-    public AuthUtil authUtil(){
-        return new AuthUtil();
+    public AuthUtil authUtil(JWTProperties jwtProperties){
+        return new AuthUtil(jwtProperties);
+    }
+
+    @Bean
+    public JWTProperties jwtProperties(){
+        return new JWTProperties();
     }
 }

@@ -15,6 +15,7 @@
         <module>gp-gateway</module>
         <module>gp-file-manager</module>
         <module>gp-auth</module>
+        <module>gp-user</module>
     </modules>
 
     <parent>
@@ -26,14 +27,15 @@
 
     <properties>
         <spring-cloud-dependencies.version>2025.0.2</spring-cloud-dependencies.version>
-        <spring-cloud-alibaba-dependencies.version>2023.0.3.4</spring-cloud-alibaba-dependencies.version>
+        <spring-cloud-alibaba-dependencies.version>2025.0.0.0</spring-cloud-alibaba-dependencies.version>
         <mysql-connector-j.version>8.3.0</mysql-connector-j.version>
         <lombok.version>1.18.42</lombok.version>
         <mybatis-plus-spring-boot3-starter.version>3.5.14</mybatis-plus-spring-boot3-starter.version>
-        <mybatis-plus-jsqlparser.versioin>3.5.14</mybatis-plus-jsqlparser.versioin>
-        <swagger.version>4.5.0</swagger.version>
+        <mybatis-plus-jsqlparser.version>3.5.14</mybatis-plus-jsqlparser.version>
+        <swagger.version>4.6.0.2</swagger.version>
         <minio.version>8.6.0</minio.version>
         <thumbnailator.version>0.4.21</thumbnailator.version>
+        <jjwt.version>0.12.6</jjwt.version>
     </properties>
 
     <dependencyManagement>
@@ -74,7 +76,7 @@
             <dependency>
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-jsqlparser</artifactId>
-                <version>${mybatis-plus-jsqlparser.versioin}</version>
+                <version>${mybatis-plus-jsqlparser.version}</version>
             </dependency>
             <!--            minio-->
             <dependency>
@@ -89,6 +91,26 @@
                 <artifactId>thumbnailator</artifactId>
                 <version>${thumbnailator.version}</version>
             </dependency>
+
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+
+
 
         </dependencies>
     </dependencyManagement>
@@ -107,10 +129,13 @@
         </dependency>
 
         <dependency>
-            <groupId>com.github.xiaoymin</groupId>
+            <groupId>com.baizhukui</groupId>
             <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
             <version>${swagger.version}</version>
+            <scope>compile</scope>
         </dependency>
+
+
 
         <!--        <dependency>-->
         <!--            <groupId>cn.hutool</groupId>-->
