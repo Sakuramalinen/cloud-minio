@@ -42,6 +42,12 @@ spring:
         group: gp-project
         namespace: 5e09156e-dc92-4641-8aba-bc14328befa8
 
+  data:
+    redis:
+      host: localhost
+      database: 0
+      port: 6379
+
 logging:
   level:
     com.gp_01.file: debug
@@ -50,11 +56,12 @@ gp:
   file-manager:
     recycle-save-day: 10
   minio:
-    url: http:localhost:9000
+    url: http://localhost:9000
     access-key: admin
     secret-key: Syq3186255
     bucket-name: local
     temp-signed-url-expire-minute: 10
+    temp-bucket-name: temp
   thumbnails:
     width: 100
   auth:
@@ -63,6 +70,9 @@ gp:
       include-path:
         - "/user-file/**"
         - "/file-base/**"
+      exclude-path:
+        - "/file-base/test"
+        - "/user-file/test"
 server:
   port: 8102
 

@@ -13,21 +13,29 @@ import com.gp_01.common.utils.FileTypeResolver;
 import com.gp_01.common.utils.TimeUtils;
 import com.gp_01.file.config.FileManagerServiceProperties;
 import com.gp_01.file.config.MinioConfig;
+import com.gp_01.file.domain.dto.UploadFileDTO;
 import com.gp_01.file.domain.po.FileBase;
 import com.gp_01.file.domain.po.UserFile;
 import com.gp_01.file.domain.query.PageFilesQuery;
 import com.gp_01.file.domain.vo.ListRecycleBinVO;
 import com.gp_01.file.domain.vo.PreviewImagesVO;
+import com.gp_01.file.domain.vo.UploadVO;
 import com.gp_01.file.mapper.UserFileMapper;
+import com.gp_01.file.operation.upload.domain.UploadFile;
+import com.gp_01.file.operation.upload.domain.UploadFileResult;
+import com.gp_01.file.operation.upload.product.MinioUploader;
 import com.gp_01.file.service.IFileBaseService;
 import com.gp_01.file.service.IUserFileService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gp_01.file.util.FileThumbnailUtils;
+import com.gp_01.file.util.FileUtils;
 import com.gp_01.file.util.MinioUtils;
 import io.micrometer.common.util.StringUtils;
+import io.minio.messages.Upload;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 import org.springframework.beans.BeanUtils;
 import org.springframework.http.ContentDisposition;
 import org.springframework.stereotype.Service;
@@ -37,6 +45,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,8 +53,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import static com.gp_01.common.enums.FileTypeEnum.DIRECTORY;
-import static com.gp_01.common.enums.FileTypeEnum.IMAGE;
+import static com.gp_01.common.enums.FileTypeEnum.*;
 
 /**
  * <p>
@@ -69,7 +77,10 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
 
     private final MinioConfig minioConfig;
 
+    private final FileUtils fileUtils;
+
     @Override
+    @Deprecated
     public void uploadFile(MultipartFile file, Long parentId, String md5Hex) {
         Long userId = UserContext.getUser();
         String fileName = file.getOriginalFilename();
@@ -398,6 +409,102 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         }
         return list;
     }
+
+    private final MinioUploader minioUploader;
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public UploadVO uploadFile(MultipartFile file, UploadFileDTO uploadFileDTO) {
+
+        Long userId = UserContext.getUser();
+        String fileName = uploadFileDTO.getFileName();
+        FileBase fileBase = null;
+        boolean exist = fileExist(userId, uploadFileDTO.getParentFileId(), fileName);
+        if (uploadFileDTO.getCurrentChunkIndex() == 1) {
+            //1.判断该用户当前文件夹内是否有同名文件
+            if (exist) {
+                throw new BadRequestException("文件已存在");
+            }
+            if (StringUtils.isEmpty(fileName)) {
+                throw new BadRequestException("文件名异常");
+            }
+            //判断是否上传过
+            fileBase = fileBaseService.exist(uploadFileDTO.getFileMd5());
+        }
+        UploadVO vo = new UploadVO();
+
+        //2. 上传文件
+        if(fileBase != null){
+            //该文件被上传过， 引用+1
+            fileBaseService.increment(uploadFileDTO.getFileMd5());
+
+        } else {
+            //上传分片文件
+            UploadFile uploadFile = new UploadFile();
+            BeanUtils.copyProperties(uploadFileDTO,uploadFile);
+            UploadFileResult uploadFileResult = minioUploader.uploadFileChunk(uploadFile, file);
+
+            vo.setUploaded(uploadFileResult.getUploaded());
+            vo.setProgress(uploadFileResult.getProgress());
+        }
+        //3.存数据库
+        String extendName = fileUtils.getFileExtendName(fileName);
+        LocalDateTime now = LocalDateTime.now();
+        if(fileBase == null && vo.getUploaded()){
+            //准备数据
+            fileBase = new FileBase();
+            fileBase.setFileSize(uploadFileDTO.getFileSize());
+            fileBase.setContentType(file.getContentType());
+            fileBase.setBucketName(minioConfig.getBucketName());
+            String objectPath = fileBaseService.getObjectPath(now, uploadFileDTO.getFileMd5(), extendName);
+            fileBase.setObjectPath(objectPath);
+            fileBase.setFileMd5(uploadFileDTO.getFileMd5());
+            fileBase.setRefCount(1);
+            fileBase.setCreateTime(now);
+            //保存到数据库
+            fileBaseService.save(fileBase);
+        }
+
+        //判断是否上传完成整个文件
+        if (vo.getUploaded()){
+            //获取文件类型
+            String integratePath = fileBaseService.getIntegratePath(now, uploadFileDTO.getFileMd5(), extendName);
+            FileTypeEnum fileType = fileUtils.getFileType(integratePath, fileName);
+            //准备数据
+            UserFile userFile = new UserFile();
+            userFile.setUserId(userId);
+            userFile.setFileId(fileBase.getId());
+            userFile.setParentId(uploadFileDTO.getParentFileId());
+            userFile.setFileName(fileName);
+            userFile.setFileSuffix(extendName);
+            userFile.setFileSize(uploadFileDTO.getFileSize());
+            userFile.setContentType(file.getContentType());
+            userFile.setFileType(fileType);
+            userFile.setCreateTime(now);
+            userFile.setUpdateTime(now);
+            userFile.setDeleted(0L);
+            //保存到数据库
+            super.save(userFile);
+            vo.setFileId(userFile.getId());
+
+            //图片制作缩略图
+            if(fileType == IMAGE){
+                fileBaseService.uploadThumbnailsFile(fileBase);
+            }
+            if(fileType == VIDEO){
+                //TODO处理视频关键帧
+            }
+        }
+        return vo;
+
+    }
+
+
+
+
+
+
+
 
 
     //TODO 文件夹下载

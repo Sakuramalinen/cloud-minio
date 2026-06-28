@@ -6,6 +6,7 @@ import com.gp_01.file.domain.po.UserFile;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -46,4 +47,31 @@ public interface IFileBaseService extends IService<FileBase> {
     String getOriginalPath(String objectPath);
 
     String[] getTempSignedUrl(String objectPath, Integer expireMinute);
+
+
+    /**
+     * 根据md5判断文件是否存在于文件系统中
+     *
+     * @param identifier 文件唯一表示（md5）
+     * @return
+     */
+    FileBase exist(String identifier);
+
+    /**
+     * 增加文件引用次数
+     * @param identifier 文件唯一表示（md5）
+     */
+    void increment(String identifier);
+
+    /**
+     * 获取完整存储路径
+     * @param createTime 文件创建时间
+     * @param identifier 文件唯一表示（md5）
+     * @param extendName 文件扩展名 .xxx
+     * @return
+     */
+    String getIntegratePath(LocalDateTime createTime, String identifier, String extendName);
+
+
+    String getObjectPath(LocalDateTime createTime, String identifier, String extendName);
 }

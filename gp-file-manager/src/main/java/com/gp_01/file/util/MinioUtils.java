@@ -1,21 +1,30 @@
 package com.gp_01.file.util;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gp_01.file.config.MinioConfig;
+import com.gp_01.file.operation.upload.domain.UploadFile;
 import io.minio.*;
 import io.minio.errors.*;
 import io.minio.http.Method;
 import io.minio.messages.Bucket;
+import io.minio.messages.DeleteError;
+import io.minio.messages.DeleteObject;
+import io.minio.messages.ListAllMyBucketsResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Paths;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -25,6 +34,10 @@ public class MinioUtils {
 
     private final MinioClient minioClient;
     private final MinioConfig minioConfig;
+
+
+    private static final String CHUNK_UPLOAD_SUFFIX = ".chunkUploading";
+
 
     /**
      * 判断桶是否存在
@@ -98,7 +111,6 @@ public class MinioUtils {
 
     /**
      * 文件上传
-     * TODO 大文件断点续传
      *
      * @param inputStream
      * @param fileName
@@ -123,13 +135,13 @@ public class MinioUtils {
     /**
      * 文件下载
      *
-     * @param fileName
+     * @param integratePath
      */
-    public InputStream downloadFile(String fileName) {
+    public InputStream downloadFile(String integratePath) {
         try {
             return minioClient.getObject(GetObjectArgs.builder()
                     .bucket(minioConfig.getBucketName())
-                    .object(fileName)
+                    .object(integratePath)
                     .build());
         } catch (Exception e) {
             log.error("下载文件失败：", e);
@@ -175,4 +187,85 @@ public class MinioUtils {
             throw new RuntimeException(e);
         }
     }
+
+    /**
+     * 上传切片
+     *
+     * @param file              文件
+     * @param identifier        唯一标识（md5）
+     * @param currentChunkIndex 当前切片序号
+     * @param basePath          基本路径
+     */
+    public void uploadChunk(MultipartFile file, String identifier, Long currentChunkIndex, String basePath) {
+        if (basePath == null || basePath.isEmpty() || identifier == null || identifier.isEmpty() || currentChunkIndex == null || file == null) {
+            throw new RuntimeException("参数异常");
+        }
+        try {
+            String fileName = identifier + "_" + currentChunkIndex + CHUNK_UPLOAD_SUFFIX;
+            String integratePath = basePath + "/" + fileName;
+            PutObjectArgs args = PutObjectArgs.builder().bucket(minioConfig.getTempBucketName()).object(integratePath).stream(file.getInputStream(), file.getSize(), -1).contentType(file.getContentType()).build();
+            minioClient.putObject(args);
+        } catch (Exception e) {
+            throw new RuntimeException("minio上传失败：", e);
+        }
+    }
+
+    /**
+     * 合并切片
+     *
+     * @param chunkNumber 切片数量
+     * @param basePath    基本路径
+     * @param identifier  唯一标识（md5）
+     */
+    public void mergeFile(Long chunkNumber, String basePath, String identifier, String targetPath) {
+        if (chunkNumber == null || basePath == null || basePath.isEmpty() || identifier == null || identifier.isEmpty() || targetPath == null) {
+            throw new RuntimeException("参数异常");
+        }
+        List<ComposeSource> sources = new ArrayList<>();
+        for (int i = 1; i <= chunkNumber; i++) {
+            String integratePath = basePath + "/" + identifier + "_" + i + CHUNK_UPLOAD_SUFFIX;
+            ComposeSource composeSource = ComposeSource.builder().bucket(minioConfig.getTempBucketName()).object(integratePath).build();
+            sources.add(composeSource);
+        }
+        try {
+//            String targetPath = basePath + "/" +  identifier + extendName;
+            ComposeObjectArgs args = ComposeObjectArgs.builder().bucket(minioConfig.getBucketName()).object(targetPath).sources(sources).build();
+            minioClient.composeObject(args);
+        } catch (Exception e) {
+            throw new RuntimeException("文件合并失败：", e);
+        }
+    }
+
+    /**
+     * 删除该文件所有切片
+     *
+     * @param chunkNumber 切片数量
+     * @param basePath    基本路径
+     * @param identifier  唯一标识（md5）
+     */
+    public void deleteChunk(Long chunkNumber, String basePath, String identifier) {
+        if (chunkNumber == null || basePath == null || basePath.isEmpty() || identifier == null || identifier.isEmpty()) {
+            throw new RuntimeException("参数异常");
+        }
+        try {
+            List<DeleteObject> deletedObjects = new ArrayList<>();
+            for (int i = 1; i <= chunkNumber; i++) {
+                String integratePath = basePath + "/" + identifier + "_" + i + CHUNK_UPLOAD_SUFFIX;
+                DeleteObject obj = new DeleteObject(integratePath);
+                deletedObjects.add(obj);
+            }
+            RemoveObjectsArgs args = RemoveObjectsArgs.builder().bucket(minioConfig.getTempBucketName()).objects(deletedObjects).build();
+            Iterable<Result<DeleteError>> results = minioClient.removeObjects(args);
+            for (Result<DeleteError> result : results) {
+                DeleteError error = result.get();
+                if (error != null) {
+                    log.error("删除切片失败：{}", error.objectName());
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("切片删除错误", e);
+        }
+    }
+
+
 }

@@ -14,6 +14,7 @@ import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cglib.core.Local;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -97,21 +98,15 @@ public class FileBaseServiceImpl extends ServiceImpl<FileBaseMapper, FileBase> i
 
     @Override
     public void uploadThumbnailsFile(FileBase fileBase) {
-        //判断是不是图片
-        String type = getContentType(fileBase.getContentType());
-        if (type.equals("image")) {
-            //获得源文件输入流
-            InputStream inputStream = minioUtils.downloadFile(getOriginalPath(fileBase.getObjectPath()));
-            //转换成缩略图
-            byte[] thumbnailBytes = thumbnailUtils.createThumbnailBytes(inputStream);
-            if(thumbnailBytes == null)return;
-            //拼接路径
-            String path = getThumbnailsPath(fileBase.getObjectPath());
-            //存到minio
-            minioUtils.uploadOriginalFile(new ByteArrayInputStream(thumbnailBytes), path, fileBase.getContentType(), thumbnailBytes.length);
-        } else if(type.equals("video")){
-             throw new CommonException("目前不支持视频");
-        }
+        //获得源文件输入流
+        InputStream inputStream = minioUtils.downloadFile(getOriginalPath(fileBase.getObjectPath()));
+        //转换成缩略图
+        byte[] thumbnailBytes = thumbnailUtils.createThumbnailBytes(inputStream);
+        if (thumbnailBytes == null) return;
+        //拼接路径
+        String path = getThumbnailsPath(fileBase.getObjectPath());
+        //存到minio
+        minioUtils.uploadOriginalFile(new ByteArrayInputStream(thumbnailBytes), path, fileBase.getContentType(), thumbnailBytes.length);
     }
 
     @Override
@@ -166,6 +161,7 @@ public class FileBaseServiceImpl extends ServiceImpl<FileBaseMapper, FileBase> i
     public String getThumbnailsPath(String objectPath) {
         return THUMBNAIL_BUCKET_NAME_PREFIX + "/" + objectPath;
     }
+
     @Override
     public String getOriginalPath(String objectPath) {
         return ORIGINAL_BUCKET_NAME_PREFIX + "/" + objectPath;
@@ -179,7 +175,7 @@ public class FileBaseServiceImpl extends ServiceImpl<FileBaseMapper, FileBase> i
         String thumbnailPath = getThumbnailsPath(objectPath);
         //获取url
         res[0] = minioUtils.getTempSignedUrl(originalPath, expireMinute);
-        res[1] = minioUtils.getTempSignedUrl(thumbnailPath,expireMinute);
+        res[1] = minioUtils.getTempSignedUrl(thumbnailPath, expireMinute);
 
         return res;
     }
@@ -202,4 +198,27 @@ public class FileBaseServiceImpl extends ServiceImpl<FileBaseMapper, FileBase> i
         return contentType.split("/")[0];
     }
 
+    @Override
+    public FileBase exist(String identifier) {
+        return lambdaQuery().eq(FileBase::getFileMd5, identifier).one();
+    }
+
+    @Override
+    public void increment(String identifier) {
+        lambdaUpdate()
+                .eq(FileBase::getFileMd5, identifier)
+                .setSql("ref_count = ref_count + 1")
+                .update();
+    }
+
+    @Override
+    public String getIntegratePath(LocalDateTime createTime, String identifier, String extendName) {
+        return ORIGINAL_BUCKET_NAME_PREFIX + "/" + getObjectPath(createTime, identifier, extendName);
+    }
+
+    @Override
+    public String getObjectPath(LocalDateTime createTime, String identifier, String extendName) {
+        String timePath = createTime.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+        return timePath + "/" + identifier + extendName;
+    }
 }

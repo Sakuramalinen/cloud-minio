@@ -3,11 +3,13 @@ package com.gp_01.file.service;
 import com.gp_01.common.domain.Result;
 import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
+import com.gp_01.file.domain.dto.UploadFileDTO;
 import com.gp_01.file.domain.po.UserFile;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.gp_01.file.domain.query.PageFilesQuery;
 import com.gp_01.file.domain.vo.ListRecycleBinVO;
 import com.gp_01.file.domain.vo.PreviewImagesVO;
+import com.gp_01.file.domain.vo.UploadVO;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -22,7 +24,7 @@ import java.util.List;
  * @since 2026-05-08
  */
 public interface IUserFileService extends IService<UserFile> {
-
+    @Deprecated
     void uploadFile(MultipartFile file, Long parentId, String md5Hex);
 
     void makeDir(Long parentId, String fileName);
@@ -62,4 +64,6 @@ public interface IUserFileService extends IService<UserFile> {
     void moveFile(Long fileId, Long targetId);
 
     List<UserFile> listDirByParentId(Long id);
+
+    UploadVO uploadFile(MultipartFile file, UploadFileDTO uploadFileDTO);
 }

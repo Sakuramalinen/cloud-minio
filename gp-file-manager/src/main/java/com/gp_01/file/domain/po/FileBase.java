@@ -52,7 +52,7 @@ public class FileBase implements Serializable {
     @SchemaProperty(name = "引用计数")
     private Integer refCount;
 
-    @TableField(fill = FieldFill.INSERT)
+//    @TableField(fill = FieldFill.INSERT)
     @SchemaProperty(name = "创建时间")
     private LocalDateTime createTime;
 

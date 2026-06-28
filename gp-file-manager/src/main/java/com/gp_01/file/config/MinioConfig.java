@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
 public class MinioConfig {
     private String url;
     private String bucketName;
+    private String tempBucketName;
     private String accessKey;
     private String secretKey;
     private Integer tempSignedUrlExpireMinute;

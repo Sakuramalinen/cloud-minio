@@ -6,13 +6,16 @@ import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.file.domain.dto.MoveFileDTO;
 import com.gp_01.file.domain.dto.ReNameDTO;
+import com.gp_01.file.domain.dto.UploadFileDTO;
 import com.gp_01.file.domain.po.UserFile;
 import com.gp_01.file.domain.query.PageFilesQuery;
 import com.gp_01.file.domain.vo.ListRecycleBinVO;
 import com.gp_01.file.domain.vo.PreviewImagesVO;
+import com.gp_01.file.domain.vo.UploadVO;
 import com.gp_01.file.service.IUserFileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -37,13 +40,19 @@ import java.util.List;
 public class UserFileController {
 
     private final IUserFileService userFileService;
-    private final DataSource dataSource;
 
-    @PutMapping("upload/file/{parentId}/{md5Hex}")
-    @Operation(summary = "上传文件")
+//    @PutMapping("upload/file/{parentId}/{md5Hex}")
+//    @Operation(summary = "上传文件")
+    @Deprecated
     public Result<Void> uploadFile(@RequestPart MultipartFile file, @PathVariable Long parentId, @PathVariable String md5Hex) {
         userFileService.uploadFile(file, parentId, md5Hex);
         return Result.success();
+    }
+    @PostMapping("upload/file")
+    @Operation(summary = "上传文件",description = "支持断点续传")
+    public Result<UploadVO> uploadFile(@RequestPart("file") MultipartFile file, @ModelAttribute UploadFileDTO uploadFileDTO){
+        UploadVO vo = userFileService.uploadFile(file, uploadFileDTO);
+        return Result.success(vo);
     }
 
     //TODO 上传文件夹，

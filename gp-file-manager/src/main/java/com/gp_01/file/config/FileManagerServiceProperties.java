@@ -11,4 +11,8 @@ public class FileManagerServiceProperties {
      * 回收站保存时间
      */
     private Integer recycleSaveDay = 10;
+
+    private String localStoragePath;
+
+    private String rootPath;
 }
