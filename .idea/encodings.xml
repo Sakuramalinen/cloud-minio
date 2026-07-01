@@ -11,8 +11,17 @@
     <file url="file://$PROJECT_DIR$/gp-common/gp-common-mybatis/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/gp-common/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/gp-common/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/gp-file-manager/gp-file-api/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/gp-file-manager/gp-file-model/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/gp-file-manager/gp-file-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/gp-file-manager/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/gp-file-manager/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/gp-gateway/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/gp-user/gp-user-api/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/gp-user/gp-user-model/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/gp-user/gp-user-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/gp-user/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/gp-user/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
   </component>

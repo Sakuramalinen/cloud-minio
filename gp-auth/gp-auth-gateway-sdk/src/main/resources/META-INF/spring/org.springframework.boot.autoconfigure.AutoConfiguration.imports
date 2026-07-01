@@ -1,1 +1,3 @@
 com.gp_01.authsdk_gateway.config.AuthAutoConfiguration
+com.gp_01.authsdk_gateway.config.JWTProperties
+com.gp_01.authsdk_gateway.utils.AuthUtil

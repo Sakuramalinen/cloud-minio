@@ -17,13 +17,21 @@ spring:
       server:
         webflux:
           routes:
-            - id: gp-file-manage-service
-              uri: lb://gp-file-manage-service
+            - id: gp-file-service
+              uri: lb://gp-file-service
               predicates:
                 - Path=/user-file/**,/file-base/**
+            - id: gp-user-service
+              uri: lb://gp-user-service
+              predicates:
+                - Path=/user/**
+            - id: gp-auth-service
+              uri: lb://gp-auth-service
+              predicates:
+                - Path=/account/**,/auth/download/**
 
     nacos:
-      server-addr: 10.211.55.14:8848
+      server-addr: localhost:8848
       username: nacos
       password: nacos
       discovery:
@@ -32,10 +40,12 @@ spring:
 server:
   port: 8100
 
-pg:
+gp:
   auth:
-    exclude-path:
-      - /register/*
+    jwt:
+      expire: 172800 # 2天
+      secret: "`1234567890-=qwertyuiop[]\asdfghjkl;'zxcvbnm,./"
+
 # 【dev环境】
 ---
 spring:

@@ -11,6 +11,10 @@
         <option value="$PROJECT_DIR$/gp-auth/gp-auth-recourse-sdk/pom.xml" />
         <option value="$PROJECT_DIR$/gp-auth/gp-auth-service/pom.xml" />
         <option value="$PROJECT_DIR$/gp-auth/gp-auth-gateway-sdk/pom.xml" />
+        <option value="$PROJECT_DIR$/gp-file-manager/gp-file-service/pom.xml" />
+        <option value="$PROJECT_DIR$/gp-file-manager/gp-file-model/pom.xml" />
+        <option value="$PROJECT_DIR$/gp-file-manager/gp-file-api/pom.xml" />
+        <option value="$PROJECT_DIR$/gp-file-manager/pom.xml" />
       </list>
     </option>
     <option name="ignoredFiles">

@@ -2,8 +2,6 @@ package com.gp_01.gateway.filter;
 
 import com.gp_01.authsdk_gateway.utils.AuthUtil;
 import com.gp_01.common.domain.dto.LoginUserDTO;
-import com.gp_01.common.enums.ResultCode;
-import com.gp_01.common.exception.ForbiddenException;
 import com.gp_01.common.exception.UnauthorizedException;
 import com.gp_01.gateway.config.AuthProperties;
 import lombok.RequiredArgsConstructor;
@@ -16,8 +14,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
-
-import java.util.List;
 
 import static com.gp_01.common.constants.AuthConstants.AUTHORIZATION_HEADER;
 import static com.gp_01.common.constants.AuthConstants.USER_INFO_HEADER;
@@ -40,22 +36,24 @@ public class AccountAuthGlobalFilter implements GlobalFilter, Ordered {
         if (isExcludePath(path)) {
             return chain.filter(exchange);
         }
+        ServerWebExchange serverWebExchange = null;
+        try {
         //获取token请求头
         String token = request.getHeaders().getFirst(AUTHORIZATION_HEADER);
-        LoginUserDTO loginUserDTO;
-        try {
-            loginUserDTO = authUtil.parseToken(token);
-            //解析成功后，创建request写入请求头
-            exchange.mutate().request(builder -> builder.
+        if (token != null) {
+            token = token.split(" ")[1];
+        }
+            LoginUserDTO loginUserDTO = authUtil.parseUserToken(token);
+            //解析成功后，复制一个新的request写入请求头
+            serverWebExchange = exchange.mutate().request(builder -> builder.
                     header(USER_INFO_HEADER, loginUserDTO.getUserId().toString())
-                    .build());
+                    .build()).build();
 
         } catch (Exception e) {
             throw new UnauthorizedException(e.getMessage());
         }
 
-
-        return chain.filter(exchange);
+        return chain.filter(serverWebExchange);
     }
 
     @Override

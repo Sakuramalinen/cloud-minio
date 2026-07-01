@@ -1,1 +1,3 @@
-com.gp_01.authsdk_recourse.interceptors.config.InterceptorConfig
+#com.gp_01.authsdk_recourse.config.ResourceAuthProperties
+com.gp_01.authsdk_recourse.config.ResourceInterceptorConfig
+com.gp_01.authsdk_recourse.config.FeignClientConfig

@@ -1,25 +1,34 @@
 package com.gp_01.gateway.config;
 
 import lombok.Data;
-import lombok.Getter;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
-//@Component
+@Component
+@ConfigurationProperties(prefix = "gp.auth")
 @Data
-@Configuration
-@ConfigurationProperties(prefix = "pg.auth")
 public class AuthProperties implements InitializingBean {
-    private Set<String> excludePath;
+
+    private boolean enable = true;
+    private List<String> excludePath = new ArrayList<>();
+
+    public boolean getEnable(){
+        return enable;
+    }
 
     @Override
-    public void afterPropertiesSet() throws Exception {
-        //默认放行路径
-        excludePath.add("/accounts/login");
-        excludePath.add("/accounts/register");
+    public void afterPropertiesSet() {
+
+        excludePath.add("/doc.html");
+        excludePath.add("/v3/**");
+        excludePath.add("/swagger-ui/**");
+        excludePath.add("/swagger-resources/**");
+        excludePath.add("/webjars/**");
+        excludePath.add("/account/login");
+        excludePath.add("/account/register");
     }
 }
