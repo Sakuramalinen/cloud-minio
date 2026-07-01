@@ -1,6 +1,5 @@
 package com.gp_01.auth.service.impl;
 
-import com.gp_01.api.client.UserClient;
 import com.gp_01.auth.service.AuthService;
 import com.gp_01.auth.service.IAccountService;
 import com.gp_01.auth.utils.JWTUtils;
@@ -29,6 +28,6 @@ public class AccountServiceImpl implements IAccountService {
         //登录
         User user = authService.execute(loginFormDTO);
 
-        return jwtUtils.create(user);
+        return jwtUtils.createUserToken(user);
     }
 }

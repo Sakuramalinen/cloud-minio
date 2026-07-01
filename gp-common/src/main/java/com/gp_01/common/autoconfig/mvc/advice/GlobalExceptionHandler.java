@@ -6,6 +6,7 @@ import com.gp_01.common.exception.CommonException;
 import com.gp_01.common.exception.ForbiddenException;
 import com.gp_01.common.exception.UnauthorizedException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -23,18 +24,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnauthorizedException.class)
     public Result<Void> UnauthorizedExceptionHandle(UnauthorizedException e){
         log.error("未登录异常", e);
+
         return Result.error(ResultCode.UNAUTHORIZED, e.getMessage());
     }
 
     @ExceptionHandler(CommonException.class)
     public Result<Void> CommonExceptionHandle(CommonException e){
         log.error("自定义异常信息:", e);
+
         return Result.error("非法请求" + e.getMessage());
     }
 
     @ExceptionHandler(Exception.class)
     public Result<Void> ExceptionHandle(Exception e){
         log.error("服务器内部异常：", e);
+
         return Result.error(ResultCode.SERVER_ERROR);
     }
 

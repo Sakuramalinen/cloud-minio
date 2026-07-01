@@ -20,9 +20,14 @@
             <artifactId>gp-user-api</artifactId>
             <version>0.0.1</version>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>com.shenyongqi.gp</groupId>-->
+<!--            <artifactId>gp-user-model</artifactId>-->
+<!--            <version>0.0.1</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>com.shenyongqi.gp</groupId>
-            <artifactId>gp-user-model</artifactId>
+            <artifactId>gp-file-api</artifactId>
             <version>0.0.1</version>
         </dependency>
         <dependency>

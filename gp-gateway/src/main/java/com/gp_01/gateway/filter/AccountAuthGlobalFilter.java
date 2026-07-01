@@ -43,7 +43,7 @@ public class AccountAuthGlobalFilter implements GlobalFilter, Ordered {
         if (token != null) {
             token = token.split(" ")[1];
         }
-            LoginUserDTO loginUserDTO = authUtil.parse(token);
+            LoginUserDTO loginUserDTO = authUtil.parseUserToken(token);
             //解析成功后，复制一个新的request写入请求头
             serverWebExchange = exchange.mutate().request(builder -> builder.
                     header(USER_INFO_HEADER, loginUserDTO.getUserId().toString())

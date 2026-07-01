@@ -2,7 +2,10 @@ package com.gp_01.authsdk_gateway.utils;
 
 import com.gp_01.authsdk_gateway.config.JWTProperties;
 import com.gp_01.common.domain.dto.LoginUserDTO;
+import com.gp_01.common.domain.header.FileDownloadHeaderParam;
 import com.gp_01.common.exception.BadRequestException;
+import com.gp_01.common.exception.ForbiddenException;
+import com.gp_01.common.exception.PrivilegeExpirationException;
 import com.gp_01.common.exception.UnauthorizedException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -14,6 +17,9 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+
+import static com.gp_01.common.constants.HttpHeaderConstants.FILE_DOWNLOAD_PATH_HEADER;
+
 @RequiredArgsConstructor
 @Component
 public class AuthUtil {
@@ -23,18 +29,14 @@ public class AuthUtil {
     private SecretKey key;
 
     @PostConstruct
-    public void init() {
+    private void init() {
         this.key = Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
     }
 
-    public LoginUserDTO parse(String token) {
+    public LoginUserDTO parseUserToken(String token) {
         Claims payload = null;
         try {
-            payload = Jwts.parser()
-                    .verifyWith(key)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
+            payload = parseToken(token);
         } catch (Exception e) {
             throw new UnauthorizedException("登录失败");
         }
@@ -44,5 +46,27 @@ public class AuthUtil {
         Long userId = payload.get("userId",Long.class);
 
         return new LoginUserDTO(userId);
+    }
+
+
+    public Claims parseToken(String token){
+        return Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+    }
+
+    public String parseFileToken(String downloadFileToken){
+        Claims payload = null;
+        try{
+            payload = parseToken(downloadFileToken);
+        } catch (Exception e){
+            throw new ForbiddenException("禁止凭证错误");
+        }
+        if(payload.getExpiration().before(new Date())){
+            throw new PrivilegeExpirationException("下载凭证过期");
+        }
+        return payload.get(FILE_DOWNLOAD_PATH_HEADER, String.class);
     }
 }

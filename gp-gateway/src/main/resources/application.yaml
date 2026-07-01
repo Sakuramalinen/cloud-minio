@@ -17,8 +17,8 @@ spring:
       server:
         webflux:
           routes:
-            - id: gp-file-manage-service
-              uri: lb://gp-file-manage-service
+            - id: gp-file-service
+              uri: lb://gp-file-service
               predicates:
                 - Path=/user-file/**,/file-base/**
             - id: gp-user-service
@@ -28,7 +28,7 @@ spring:
             - id: gp-auth-service
               uri: lb://gp-auth-service
               predicates:
-                - Path=/account/**
+                - Path=/account/**,/auth/download/**
 
     nacos:
       server-addr: localhost:8848
