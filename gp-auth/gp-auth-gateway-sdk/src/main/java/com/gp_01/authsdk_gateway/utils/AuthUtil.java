@@ -1,8 +1,8 @@
 package com.gp_01.authsdk_gateway.utils;
 
 import com.gp_01.authsdk_gateway.config.JWTProperties;
+import com.gp_01.common.domain.dto.FileDownloadDTO;
 import com.gp_01.common.domain.dto.LoginUserDTO;
-import com.gp_01.common.domain.header.FileDownloadHeaderParam;
 import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.common.exception.ForbiddenException;
 import com.gp_01.common.exception.PrivilegeExpirationException;
@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 import static com.gp_01.common.constants.HttpHeaderConstants.FILE_DOWNLOAD_PATH_HEADER;
+import static com.gp_01.common.constants.HttpHeaderConstants.FILE_DOWNLOAD_USERID_HEADER;
 
 @RequiredArgsConstructor
 @Component
@@ -57,7 +58,7 @@ public class AuthUtil {
                     .getPayload();
     }
 
-    public String parseFileToken(String downloadFileToken){
+    public FileDownloadDTO parseFileToken(String downloadFileToken){
         Claims payload = null;
         try{
             payload = parseToken(downloadFileToken);
@@ -67,6 +68,8 @@ public class AuthUtil {
         if(payload.getExpiration().before(new Date())){
             throw new PrivilegeExpirationException("下载凭证过期");
         }
-        return payload.get(FILE_DOWNLOAD_PATH_HEADER, String.class);
+        String path = payload.get(FILE_DOWNLOAD_PATH_HEADER, String.class);
+        Long userId = payload.get(FILE_DOWNLOAD_USERID_HEADER, Long.class);
+        return new FileDownloadDTO(path, userId);
     }
 }

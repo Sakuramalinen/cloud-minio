@@ -1,5 +1,6 @@
 package com.gp_01.auth.service.impl;
 
+import com.gp_01.auth.config.JWTProperties;
 import com.gp_01.auth.service.AuthService;
 import com.gp_01.auth.service.IAccountService;
 import com.gp_01.auth.utils.JWTUtils;
@@ -10,6 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class AccountServiceImpl implements IAccountService {
@@ -19,6 +23,8 @@ public class AccountServiceImpl implements IAccountService {
 
     private final JWTUtils jwtUtils;
 
+    private final JWTProperties jwtProperties;
+
     @Override
     public String login(LoginFormDTO loginFormDTO) {
         //TODO 校验验证码
@@ -27,7 +33,8 @@ public class AccountServiceImpl implements IAccountService {
         AuthService authService = (AuthService) applicationContext.getBean(beanName);
         //登录
         User user = authService.execute(loginFormDTO);
-
-        return jwtUtils.createUserToken(user);
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", user.getId());
+        return jwtUtils.createToken(claims,jwtProperties.getExpire());
     }
 }

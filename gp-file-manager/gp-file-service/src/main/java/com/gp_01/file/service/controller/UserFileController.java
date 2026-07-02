@@ -48,7 +48,7 @@ public class UserFileController {
     }
     @PostMapping("upload/file")
     @Operation(summary = "上传文件",description = "支持断点续传")
-    public Result<UploadVO> uploadFile(@RequestPart("com/gp_01/file") MultipartFile file, @ModelAttribute UploadFileDTO uploadFileDTO){
+    public Result<UploadVO> uploadFile(@RequestPart("file") MultipartFile file, @ModelAttribute UploadFileDTO uploadFileDTO){
         UploadVO vo = userFileService.uploadFile(file, uploadFileDTO);
         return Result.success(vo);
     }
@@ -99,12 +99,20 @@ public class UserFileController {
         userFileService.downloadFile(request, response, dto);
     }
 
-    //预览文件
-    @GetMapping("preview/{id}")
+
+
+//    @GetMapping("preview/{id}")
     @Operation(summary = "文件预览")
     public void previewFileById(@PathVariable String id, HttpServletResponse response){
         userFileService.previewFileById(id, response);
     }
+
+    @GetMapping("preview")
+    @Operation(summary = "文件预览", description = "支持大文件预览")
+    public void previewFile(HttpServletRequest request, HttpServletResponse response, PreviewFileDTO dto){
+        userFileService.previewFile(request, response, dto);
+    }
+
 
     @GetMapping("recycle/list")
     @Operation(summary = "查看回收站")
@@ -118,7 +126,6 @@ public class UserFileController {
         userFileService.restoreFile(ids);
         return Result.success();
     }
-    //TODO 彻底删除回收站
     @DeleteMapping("recycle/batch")
     public Result<Void> deleteRecycleFileBatch(@RequestBody List<Long> ids){
         userFileService.deleteRecycleFileBatch(ids);

@@ -13,6 +13,7 @@ import com.gp_01.common.exception.ForbiddenException;
 import com.gp_01.common.utils.FileTypeResolver;
 import com.gp_01.common.utils.TimeUtils;
 import com.gp_01.file.model.domain.dto.DownloadFileDTO;
+import com.gp_01.file.model.domain.dto.PreviewFileDTO;
 import com.gp_01.file.model.domain.dto.UploadFileDTO;
 import com.gp_01.file.model.domain.po.FileBase;
 import com.gp_01.file.model.domain.po.UserFile;
@@ -35,6 +36,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gp_01.file.service.util.FileUtils;
 import com.gp_01.file.service.util.HttpUtils;
 import io.micrometer.common.util.StringUtils;
+import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -517,14 +519,14 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         DownloadFile downloadFile;
         if (dto.getChunked()) {
             //分片下载
-            Long[] range = HttpUtils.getRange(request);
-            downloadFile = new DownloadFile(downloadPath, range[0], range[1], dto.getChunked());
+            Long[] range = HttpUtils.getRequestRange(request, dto.getFileSize());
             //设置下载相关请求头
-            HttpUtils.setDownloadHeaders(response, dto.getFileName(), dto.getFileSize(), dto.getContentType(), downloadFile.getOffset(), downloadFile.getLength());
+            HttpUtils.setDownloadResponse(response, dto.getFileName(), dto.getFileSize(), dto.getContentType(), range[0], range[1]);
+            downloadFile = new DownloadFile(downloadPath, range[0], range[1] - range[0] + 1, dto.getChunked());
         } else {
             //文件整体下载
             downloadFile = new DownloadFile(downloadPath);
-            HttpUtils.setDownloadHeaders(response, dto.getFileName(), dto.getFileSize(), dto.getContentType());
+            HttpUtils.setDownloadResponse(response, dto.getFileName(), dto.getFileSize(), dto.getContentType());
 
         }
         //下载文件
@@ -581,6 +583,45 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
                 .in(UserFile::getId, ids);
         super.remove(wrapper);
 
+
+
+    }
+
+    @Override
+    public void previewFile(HttpServletRequest request, HttpServletResponse response, PreviewFileDTO dto) {
+        Long userId = FileDownloadContext.getDownloadUser();
+        if(!userId.equals(UserContext.getUser())){
+            throw new ForbiddenException("暂无权限下载");
+        }
+        String previewPath = FileDownloadContext.getDownloadPath();
+
+        //判断是否分流
+        DownloadFile downloadFile = null;
+        if (dto.getChunkStreamed()) {
+            Long[] range = HttpUtils.getRequestRange(request, dto.getFileSize());
+            //计算结束位置
+            HttpUtils.setPreviewResponse(response, range[0], range[1], dto.getFileSize(), dto.getContentType());
+            downloadFile = new DownloadFile(previewPath, range[0], range[1] - range[0] + 1,  dto.getChunkStreamed());
+        } else {
+            HttpUtils.setPreviewResponse(response, dto.getFileSize());
+            downloadFile = new DownloadFile(previewPath);
+        }
+
+        //下载文件
+        try(InputStream is = downloader.execute(downloadFile)){
+            byte[] buff = new byte[1024 * 1024 * 5];
+            int len;
+            while((len = is.read(buff)) != -1){
+                response.getOutputStream().write(buff,0, len);
+            }
+            log.debug("加载大小：{}", buff.length);
+        }catch(Exception e){
+            if(e.getMessage().contains("Broken pipe")){
+                log.debug("链接断开");
+            } else {
+                throw new BadRequestException("文件下载失败");
+            }
+        }
 
 
     }

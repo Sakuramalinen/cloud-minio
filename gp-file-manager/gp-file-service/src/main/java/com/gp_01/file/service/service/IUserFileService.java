@@ -3,6 +3,7 @@ package com.gp_01.file.service.service;
 import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.file.model.domain.dto.DownloadFileDTO;
+import com.gp_01.file.model.domain.dto.PreviewFileDTO;
 import com.gp_01.file.model.domain.dto.UploadFileDTO;
 import com.gp_01.file.model.domain.po.UserFile;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -79,4 +80,6 @@ public interface IUserFileService extends IService<UserFile> {
      * @param ids
      */
     void deleteRecycleFileBatch(List<Long> ids);
+
+    void previewFile(HttpServletRequest request, HttpServletResponse response, PreviewFileDTO dto);
 }
