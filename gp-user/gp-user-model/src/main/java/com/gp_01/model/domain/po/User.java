@@ -4,11 +4,13 @@ import com.baomidou.mybatisplus.annotation.*;
 import com.gp_01.model.enums.UserStatusEnum;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.SchemaProperty;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
 
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -29,6 +31,7 @@ import java.util.List;
 @Schema(name = "User对象", description = "用户基本信息表")
 public class User implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @SchemaProperty(name = "主键ID")

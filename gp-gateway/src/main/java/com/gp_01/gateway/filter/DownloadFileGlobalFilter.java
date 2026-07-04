@@ -1,7 +1,7 @@
 package com.gp_01.gateway.filter;
 
 import com.gp_01.authsdk_gateway.utils.AuthUtil;
-import io.jsonwebtoken.Claims;
+import com.gp_01.common.domain.dto.FileDownloadDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -12,6 +12,8 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import static com.gp_01.common.constants.HttpHeaderConstants.FILE_DOWNLOAD_PATH_HEADER;
+import static com.gp_01.common.constants.HttpHeaderConstants.FILE_DOWNLOAD_USERID_HEADER;
+
 @Component
 @RequiredArgsConstructor
 public class DownloadFileGlobalFilter implements GlobalFilter, Ordered {
@@ -26,10 +28,11 @@ public class DownloadFileGlobalFilter implements GlobalFilter, Ordered {
         String downloadFileHeader = request.getHeaders().getFirst(FILE_DOWNLOAD_PATH_HEADER);
         if (downloadFileHeader != null) {
             //解析token
-            String downloadPath = authUtil.parseFileToken(downloadFileHeader);
+            FileDownloadDTO fileDownloadDTO = authUtil.parseFileToken(downloadFileHeader);
             //克隆request添加header
             res = exchange.mutate().request(builder -> builder
-                    .header(FILE_DOWNLOAD_PATH_HEADER, downloadPath)
+                    .header(FILE_DOWNLOAD_PATH_HEADER, fileDownloadDTO.getDownloadPath())
+                    .header(FILE_DOWNLOAD_USERID_HEADER, String.valueOf(fileDownloadDTO.getUserId()))
             ).build();
         }
         if (res != null) {

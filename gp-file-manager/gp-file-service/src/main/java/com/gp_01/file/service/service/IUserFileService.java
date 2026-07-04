@@ -3,6 +3,7 @@ package com.gp_01.file.service.service;
 import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.file.model.domain.dto.DownloadFileDTO;
+import com.gp_01.file.model.domain.dto.PreviewFileDTO;
 import com.gp_01.file.model.domain.dto.UploadFileDTO;
 import com.gp_01.file.model.domain.po.UserFile;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -26,8 +27,8 @@ import java.util.List;
  * @since 2026-05-08
  */
 public interface IUserFileService extends IService<UserFile> {
-    @Deprecated
-    void uploadFile(MultipartFile file, Long parentId, String md5Hex);
+
+//    void uploadFile(MultipartFile file, Long parentId, String md5Hex);
 
     void makeDir(Long parentId, String fileName);
 
@@ -42,9 +43,9 @@ public interface IUserFileService extends IService<UserFile> {
      * @param id
      * @param response
      */
-    void downloadById(Long id, HttpServletResponse response);
+//    void downloadById(Long id, HttpServletResponse response);
 
-    void previewFileById(String id, HttpServletResponse response);
+//    void previewFileById(String id, HttpServletResponse response);
 
     /**
      * 查看回收站
@@ -79,4 +80,6 @@ public interface IUserFileService extends IService<UserFile> {
      * @param ids
      */
     void deleteRecycleFileBatch(List<Long> ids);
+
+    void previewFile(HttpServletRequest request, HttpServletResponse response, PreviewFileDTO dto);
 }

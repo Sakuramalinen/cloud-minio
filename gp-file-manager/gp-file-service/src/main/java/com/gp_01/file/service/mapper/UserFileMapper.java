@@ -40,6 +40,13 @@ public interface UserFileMapper extends BaseMapper<UserFile> {
      */
     List<Long> listIdsByDirIds(List<Long> dirIds);
 
+    /**
+     * 文件列表分页查询
+     * @param page
+     * @param query
+     * @param userId
+     * @return
+     */
     Page<UserFile> listFileByPage(Page<UserFile> page, @Param("query")PageFilesQuery query, @Param("userId") Long userId);
 
     Integer existsSameFileName(Long id, Long userId, Long targetId);

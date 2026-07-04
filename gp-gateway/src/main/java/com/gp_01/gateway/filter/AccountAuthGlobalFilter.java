@@ -2,6 +2,7 @@ package com.gp_01.gateway.filter;
 
 import com.gp_01.authsdk_gateway.utils.AuthUtil;
 import com.gp_01.common.domain.dto.LoginUserDTO;
+import com.gp_01.common.exception.CommonException;
 import com.gp_01.common.exception.UnauthorizedException;
 import com.gp_01.gateway.config.AuthProperties;
 import lombok.RequiredArgsConstructor;
@@ -37,21 +38,17 @@ public class AccountAuthGlobalFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
         ServerWebExchange serverWebExchange = null;
-        try {
+
         //获取token请求头
         String token = request.getHeaders().getFirst(AUTHORIZATION_HEADER);
         if (token != null) {
             token = token.split(" ")[1];
         }
-            LoginUserDTO loginUserDTO = authUtil.parseUserToken(token);
-            //解析成功后，复制一个新的request写入请求头
-            serverWebExchange = exchange.mutate().request(builder -> builder.
-                    header(USER_INFO_HEADER, loginUserDTO.getUserId().toString())
-                    .build()).build();
-
-        } catch (Exception e) {
-            throw new UnauthorizedException(e.getMessage());
-        }
+        LoginUserDTO loginUserDTO = authUtil.parseUserToken(token);
+        //解析成功后，复制一个新的request写入请求头
+        serverWebExchange = exchange.mutate().request(builder -> builder.
+                header(USER_INFO_HEADER, loginUserDTO.getUserId().toString())
+                .build()).build();
 
         return chain.filter(serverWebExchange);
     }

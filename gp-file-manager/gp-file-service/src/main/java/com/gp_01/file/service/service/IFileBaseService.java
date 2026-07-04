@@ -18,14 +18,6 @@ import java.util.List;
  * @since 2026-05-07
  */
 public interface IFileBaseService extends IService<FileBase> {
-    /**
-     * 上传文件
-     *
-     * @param file
-     * @param md5Hex
-     * @return
-     */
-    FileBase uploadOriginalFile(MultipartFile file, String md5Hex);
 
     /**
      * 上传缩略图
@@ -33,21 +25,12 @@ public interface IFileBaseService extends IService<FileBase> {
     void uploadThumbnailsFile(FileBase fileBase);
 
     /**
-     * 减少文件计数
-     *
-     * @param ids
+     * 获得文件存储url
+     * @param objectPath
+     * @param expireMinute
+     * @return [源文件url，缩略图url]
      */
-    void subtractRefCount(List<Long> ids);
-
-    //下载文件
-    public void fileDownload(UserFile userFile, HttpServletResponse response);
-
-    String getThumbnailsPath(String objectPath);
-
-    String getOriginalPath(String objectPath);
-
     String[] getTempSignedUrl(String objectPath, Integer expireMinute);
-
 
     /**
      * 根据md5判断文件是否存在于文件系统中
@@ -78,22 +61,17 @@ public interface IFileBaseService extends IService<FileBase> {
      * 获取完整存储路径
      *
      * @param createTime 文件创建时间
-     * @param identifier 文件唯一表示（md5）
-     * @param extendName 文件扩展名 .xxx
+     * @param md5Hex 文件唯一表示（md5）
+     * @param fileSuffix 文件扩展名 .xxx
      * @return
      */
-    String getIntegratePath(LocalDateTime createTime, String identifier, String extendName);
+    String getOriginalPath(LocalDateTime createTime, String md5Hex, String fileSuffix);
 
-    String getIntegratePath(String objectPath);
+    String getOriginalPath(String objectPath);
 
+    String getThumbnailsPath(LocalDateTime createTime, String md5Hex, String fileSuffix);
+
+    String getThumbnailsPath(String objectPath);
 
     String getObjectPath(LocalDateTime createTime, String identifier, String extendName);
-
-    /**
-     * 文件下载
-     * @param fileId
-     * @param response
-     * @param downloadFileDTO
-     */
-//    void downloadFile(Long fileId, HttpServletRequest request, HttpServletResponse response, DownloadFileDTO downloadFileDTO);
 }
