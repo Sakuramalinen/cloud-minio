@@ -5,14 +5,13 @@ import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
-import org.xmlunit.builder.Input;
 
 import java.io.*;
 @Slf4j
 @Data
 @Component
 @ConfigurationProperties(prefix = "gp.thumbnails")
-public class FileThumbnailUtils {
+public class ThumbnailUtils {
 
     private int width;
 

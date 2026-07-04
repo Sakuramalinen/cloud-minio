@@ -1,6 +1,7 @@
 package com.gp_01.auth.utils;
 
 import com.gp_01.auth.config.JWTProperties;
+import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.common.exception.UnauthorizedException;
 import io.jsonwebtoken.Claims;
@@ -8,6 +9,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -17,6 +19,7 @@ import java.util.Map;
 
 @RequiredArgsConstructor
 @Component
+@Slf4j
 public class JWTUtils {
 
     private final JWTProperties jwtProperties;
@@ -51,10 +54,10 @@ public class JWTUtils {
                     .parseSignedClaims(token)
                     .getPayload();
         } catch (Exception e) {
-            throw new UnauthorizedException("登录失败");
+            throw new UnauthorizedException(ErrorCode.LOGIN_ERROR);
         }
         if(payload.getExpiration().before(new Date())){
-            throw new BadRequestException("登录过期");
+            throw new BadRequestException(ErrorCode.LOGIN_EXPIRATION_ERROR);
         }
         return payload;
     }

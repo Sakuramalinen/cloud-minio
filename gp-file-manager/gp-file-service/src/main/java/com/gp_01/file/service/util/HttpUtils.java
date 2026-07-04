@@ -1,5 +1,6 @@
 package com.gp_01.file.service.util;
 
+import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.exception.BadRequestException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -30,7 +31,7 @@ public class HttpUtils {
             return new Long[]{start, end};
         } catch (Exception e){
             log.error("请求头range格式异常");
-            throw new BadRequestException("传输格式异常");
+            throw new BadRequestException(ErrorCode.PARAM_ERROR);
         }
     }
 

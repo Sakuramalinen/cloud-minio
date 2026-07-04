@@ -1,7 +1,8 @@
 package com.gp_01.file.service.operation.upload;
 
-import com.gp_01.common.exception.FileNotFoundException;
-import com.gp_01.common.exception.UploadFileChunkIndexException;
+import com.gp_01.common.enums.ErrorCode;
+import com.gp_01.common.exception.CommonException;
+import com.gp_01.common.exception.RecourseIOException;
 import com.gp_01.file.service.operation.upload.domain.UploadFile;
 import com.gp_01.file.service.operation.upload.domain.UploadFileResult;
 import com.gp_01.file.service.util.RedisUtils;
@@ -13,9 +14,13 @@ import org.redisson.api.RedissonClient;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.concurrent.TimeUnit;
+
+import static com.gp_01.common.enums.ErrorCode.PARAM_ERROR;
+import static com.gp_01.common.enums.ErrorCode.SERVICE_ERROR;
 
 
 @RequiredArgsConstructor
@@ -30,14 +35,17 @@ public abstract class Uploader {
             byte[] fileArray = FileUtils.readFileToByteArray(progressFile);
             for (byte b : fileArray) {
                 if (b != Byte.MAX_VALUE) {
-                    raf.close();
                     return false;
                 }
             }
             boolean deleted = progressFile.delete();
             return true;
+        } catch (FileNotFoundException e) {
+            log.debug("上传进度文件{}不存在 -> ",progressFile.getAbsolutePath(), e);
+            return false;
         } catch (IOException e) {
-            throw new FileNotFoundException("上传进度文件不存在");
+            log.error("读取进度文件错误 -> ", e);
+            throw new CommonException(SERVICE_ERROR);
         }
     }
 
@@ -49,8 +57,12 @@ public abstract class Uploader {
             raf.seek(uploadFile.getCurrentChunkIndex() - 1);
             //写进度标记
             raf.write(Byte.MAX_VALUE);
+        } catch (FileNotFoundException e){
+            log.error("写进度文件失败，进度文件{}不存在 -> ", progressFile.getAbsolutePath(), e);
+            throw new RecourseIOException(SERVICE_ERROR);
         } catch (IOException e) {
-            throw new FileNotFoundException("上传文件写进度失败");
+            log.error("写进度文件失败 -> ", e);
+            throw new CommonException(SERVICE_ERROR);
         }
     }
 
@@ -83,7 +95,7 @@ public abstract class Uploader {
             boolean acquired = lock.tryLock(300, TimeUnit.SECONDS);
             if (!acquired) {
                 log.error("上传文件切片，获取分布式锁超时");
-                throw new UploadFileChunkIndexException("服务器超时");
+                throw new CommonException(SERVICE_ERROR.getCode(), "服务器超时");
             }
             //如果内存没有分片就把分片一号添加进去
             if (redisUtils.get(current_upload_chunk_index) == null) {
@@ -102,7 +114,7 @@ public abstract class Uploader {
                     } else {
                         if (Math.abs(uploadFile.getCurrentChunkIndex() - chunkIndex) > serviceTotal) {
                             log.error("当前传入的编号为：{}, 正确传入的编号为：{}", uploadFile.getCurrentChunkIndex(), chunkIndex);
-                            throw new UploadFileChunkIndexException("传入切片异常");
+                            throw new CommonException(PARAM_ERROR.getCode(), "传入切片异常");
                         }
                         lock.unlock();
                         Thread.sleep(100);
@@ -117,7 +129,8 @@ public abstract class Uploader {
                 redisUtils.increment(current_upload_chunk_index);
             }
         } catch (Exception e) {
-            throw new UploadFileChunkIndexException(e.getMessage());
+            log.error("当前切片{}, 文件切片上传失败 -> ", uploadFile.getCurrentChunkIndex(), e);
+            throw new CommonException(SERVICE_ERROR.getCode(), "文件上传失败");
         } finally {
             if (lock.isHeldByCurrentThread()) {
                 lock.unlock();

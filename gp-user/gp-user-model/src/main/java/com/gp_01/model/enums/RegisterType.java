@@ -2,6 +2,7 @@ package com.gp_01.model.enums;
 
 import com.baomidou.mybatisplus.annotation.EnumValue;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.exception.BadRequestException;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -25,6 +26,6 @@ public enum RegisterType {
                 return registerType;
             }
         }
-        throw new BadRequestException("无效注册服务状态类型：" + val);
+        throw new BadRequestException(ErrorCode.PARAM_ERROR);
     }
 }

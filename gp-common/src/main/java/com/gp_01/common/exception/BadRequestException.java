@@ -1,10 +1,18 @@
 package com.gp_01.common.exception;
 
+import com.gp_01.common.enums.ErrorCode;
+
 /**
- * 请求不合法异常
+ * 业务异常
  */
 public class BadRequestException extends CommonException {
-    public BadRequestException(String message) {
-        super(message);
+
+    public BadRequestException(ErrorCode errorCode) {
+        super(errorCode);
     }
+
+    public BadRequestException(Integer code, String msg) {
+        super(code, msg);
+    }
+
 }

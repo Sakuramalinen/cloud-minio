@@ -2,7 +2,7 @@ package com.gp_01.file.service.controller;
 
 
 import com.gp_01.file.service.service.IFileBaseService;
-import com.gp_01.file.service.util.FileThumbnailUtils;
+import com.gp_01.file.service.util.ThumbnailUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
@@ -25,7 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class FileBaseController {
 
     private final IFileBaseService fileBaseService;
-    private final FileThumbnailUtils fileThumbnailUtils;
+    private final ThumbnailUtils thumbnailUtils;
 
 
 //    @PostMapping("upload")

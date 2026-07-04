@@ -7,6 +7,7 @@ import com.gp_01.common.domain.Result;
 import com.gp_01.model.domain.dto.LoginFormDTO;
 import com.gp_01.model.domain.po.User;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 
@@ -25,10 +26,11 @@ public class AccountController {
 
     @PostMapping("login")
     @Operation(summary = "登陆并获取token")
-    public Result<String> login(@RequestBody LoginFormDTO loginFormDTO){
+    public Result<String> login(@RequestBody @Valid LoginFormDTO loginFormDTO){
         String token = accountService.login(loginFormDTO);
         return Result.success(token);
     }
+
     @PostMapping("logout")
     @Operation(summary = "退出登陆")
     public Result<Void> logout(){

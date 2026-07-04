@@ -3,15 +3,16 @@ package com.gp_01.authsdk_gateway.utils;
 import com.gp_01.authsdk_gateway.config.JWTProperties;
 import com.gp_01.common.domain.dto.FileDownloadDTO;
 import com.gp_01.common.domain.dto.LoginUserDTO;
+import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.common.exception.ForbiddenException;
-import com.gp_01.common.exception.PrivilegeExpirationException;
 import com.gp_01.common.exception.UnauthorizedException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -23,6 +24,7 @@ import static com.gp_01.common.constants.HttpHeaderConstants.FILE_DOWNLOAD_USERI
 
 @RequiredArgsConstructor
 @Component
+@Slf4j
 public class AuthUtil {
 
     private final JWTProperties jwtProperties;
@@ -39,10 +41,12 @@ public class AuthUtil {
         try {
             payload = parseToken(token);
         } catch (Exception e) {
-            throw new UnauthorizedException("登录失败");
+            log.debug("用户未登录");
+            throw new UnauthorizedException(ErrorCode.LOGIN_ERROR);
         }
         if(payload.getExpiration().before(new Date())){
-            throw new BadRequestException("登录过期");
+            log.debug("用户登录过期");
+            throw new UnauthorizedException(ErrorCode.LOGIN_EXPIRATION_ERROR);
         }
         Long userId = payload.get("userId",Long.class);
 
@@ -63,10 +67,12 @@ public class AuthUtil {
         try{
             payload = parseToken(downloadFileToken);
         } catch (Exception e){
-            throw new ForbiddenException("禁止凭证错误");
+            log.debug("解析下载token失败");
+            throw new ForbiddenException(ErrorCode.AUTHORITY_ERROR.getCode(), "校验下载凭证失败");
         }
         if(payload.getExpiration().before(new Date())){
-            throw new PrivilegeExpirationException("下载凭证过期");
+            log.debug("下载token过期");
+            throw new ForbiddenException(ErrorCode.AUTHORITY_EXPIRATION_ERROR.getCode(), "下载凭证过期");
         }
         String path = payload.get(FILE_DOWNLOAD_PATH_HEADER, String.class);
         Long userId = payload.get(FILE_DOWNLOAD_USERID_HEADER, Long.class);

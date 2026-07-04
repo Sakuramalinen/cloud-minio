@@ -27,8 +27,8 @@ import java.util.List;
  * @since 2026-05-08
  */
 public interface IUserFileService extends IService<UserFile> {
-    @Deprecated
-    void uploadFile(MultipartFile file, Long parentId, String md5Hex);
+
+//    void uploadFile(MultipartFile file, Long parentId, String md5Hex);
 
     void makeDir(Long parentId, String fileName);
 
@@ -43,9 +43,9 @@ public interface IUserFileService extends IService<UserFile> {
      * @param id
      * @param response
      */
-    void downloadById(Long id, HttpServletResponse response);
+//    void downloadById(Long id, HttpServletResponse response);
 
-    void previewFileById(String id, HttpServletResponse response);
+//    void previewFileById(String id, HttpServletResponse response);
 
     /**
      * 查看回收站
