@@ -7,10 +7,7 @@ import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.file.model.domain.dto.*;
 import com.gp_01.file.model.domain.po.UserFile;
 import com.gp_01.file.model.domain.query.PageFilesQuery;
-import com.gp_01.file.model.domain.vo.FileDetail;
-import com.gp_01.file.model.domain.vo.ListRecycleBinVO;
-import com.gp_01.file.model.domain.vo.PreviewImagesVO;
-import com.gp_01.file.model.domain.vo.UploadVO;
+import com.gp_01.file.model.domain.vo.*;
 import com.gp_01.file.service.service.IUserFileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -82,12 +79,7 @@ public class UserFileController {
         return Result.success();
     }
 
-    @DeleteMapping("{id}")
-    @Operation(summary = "删除文件或文件夹")
-    public Result<Void> deleteById(@PathVariable @NotNull Long id) {
-        userFileService.deleteById(id);
-        return Result.success();
-    }
+
 
     @GetMapping("list")
     @Operation(summary = "分页查询当前目录")
@@ -95,11 +87,7 @@ public class UserFileController {
         return userFileService.listFileByParentId(pageFilesQuery);
     }
 
-//    @GetMapping("download/{id}")
-//    @Operation(summary = "下载单个文件")
-//    public void downloadById(@PathVariable Long id, HttpServletResponse response) {
-//        userFileService.downloadById(id, response);
-//    }
+
 
     @GetMapping("download/file")
     @Operation(summary = "下载文件", description = "支持大文件分片下载")
@@ -108,29 +96,30 @@ public class UserFileController {
     }
 
 
-    //    @GetMapping("preview/{id}")
-//    @Operation(summary = "文件预览")
-//    public void previewFileById(@PathVariable String id, HttpServletResponse response) {
-//        userFileService.previewFileById(id, response);
-//    }
-
     @GetMapping("preview")
     @Operation(summary = "文件预览", description = "支持大文件分流预览")
     public void previewFile(HttpServletRequest request, HttpServletResponse response, @Valid PreviewFileDTO dto) {
         userFileService.previewFile(request, response, dto);
     }
 
+    @DeleteMapping("{id}")
+    @Operation(summary = "删除文件或文件夹")
+    public Result<Void> deleteById(@PathVariable @NotNull Long id) {
+        userFileService.deleteById(id);
+        return Result.success();
+    }
+
 
     @GetMapping("recycle/list")
     @Operation(summary = "查看回收站")
-    public Result<List<ListRecycleBinVO>> listRecycleBin() {
+    public Result<List<ListRecycleBinVO>> listRecycle() {
         List<ListRecycleBinVO> data = userFileService.listRecycleBin();
         return Result.success(data);
     }
 
     @PutMapping("restore")
     @Operation(summary = "从回收站恢复文件")
-    public Result<Void> restoreFile(@RequestBody @NotEmpty List<Long> ids) {
+    public Result<Void> restoreRecycleFile(@RequestBody @NotEmpty List<Long> ids) {
         userFileService.restoreFile(ids);
         return Result.success();
     }
@@ -169,11 +158,11 @@ public class UserFileController {
         return userFileService.listFileByTypeAndPage(params, type);
     }
 
-    @GetMapping("download/detail/{id}")
-    @Operation(summary = "获取文件详细信息")
-    public Result<FileDetail> getFileDetail(@PathVariable @NotNull Long id) {
-        FileDetail fileDetail = userFileService.getFileDetail(id);
-        return Result.success(fileDetail);
+    @GetMapping("download/path/{id}")
+    @Operation(summary = "获取文件下载路径")
+    public Result<String> getDownloadPath(@PathVariable Long id){
+        String path = userFileService.getDownloadPath(id);
+        return Result.success(path);
     }
 
 

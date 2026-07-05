@@ -60,21 +60,20 @@ public class FileUtils {
         return fileName.substring(fileName.lastIndexOf("."));
     }
 
-    public  FileTypeEnum getFileType(String integratePath, String fileName){
+    /**
+     * 从文件二进制中获取contentType
+     * @param originalPath 存储路径
+     * @param fileName 文件名
+     * @return
+     */
+    public String getFileType(String originalPath, String fileName){
 
         byte[] buff = new byte[2048];
-        try(InputStream is = minioUtils.downloadFile(integratePath)) {
+        try(InputStream is = minioUtils.downloadFile(originalPath)) {
             int read = is.read(buff);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        String mime = tika.detect(buff, fileName);
-        if (mime.startsWith("video/")) return VIDEO;
-        if (mime.startsWith("audio/")) return AUDIO;
-        if (mime.startsWith("image/")) return IMAGE;
-        if(mime.startsWith("text/")) return TEXT;
-        else {
-            return OTHER;
-        }
+        return tika.detect(buff, fileName);
     }
 }

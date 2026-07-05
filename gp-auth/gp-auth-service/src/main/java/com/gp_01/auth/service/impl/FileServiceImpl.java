@@ -6,6 +6,7 @@ import com.gp_01.auth.utils.JWTUtils;
 import com.gp_01.common.context.UserContext;
 import com.gp_01.common.domain.Result;
 import com.gp_01.api.client.UserFileClient;
+import com.gp_01.file.model.domain.vo.DownloadPrivilegeVO;
 import com.gp_01.file.model.domain.vo.FileDetail;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,19 +32,21 @@ public class FileServiceImpl implements IFileService {
     @Override
     public String getDownloadPrivilege(Long id) {
 
-        Result<FileDetail> result = userFileClient.getFileDetail(id);
-        FileDetail fileDetail = result.getData();
-        String createTime = fileDetail.getCreateTime().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
-        String downloadPath = "original/" + createTime + "/" + fileDetail.getFileMd5() + fileDetail.getFileSuffix();
-
+        Result<String> result = userFileClient.getDownloadPath(id);
+        String path = result.getData();
         Long userId = UserContext.getUser();
-
         HashMap<String, Object> claims = new HashMap<>();
-        claims.put(FILE_DOWNLOAD_PATH_HEADER, downloadPath);
+        claims.put(FILE_DOWNLOAD_PATH_HEADER, path);
         claims.put(FILE_DOWNLOAD_USERID_HEADER, userId);
 
         return jwtUtils.createToken(claims, jwtProperties.getExpire());
 
 
+    }
+
+    @Override
+    public String getUploadPrivilege(Long id) {
+
+        return "";
     }
 }

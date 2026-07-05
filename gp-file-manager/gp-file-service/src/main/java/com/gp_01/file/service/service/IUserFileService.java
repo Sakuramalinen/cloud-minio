@@ -8,10 +8,7 @@ import com.gp_01.file.model.domain.dto.UploadFileDTO;
 import com.gp_01.file.model.domain.po.UserFile;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.gp_01.file.model.domain.query.PageFilesQuery;
-import com.gp_01.file.model.domain.vo.FileDetail;
-import com.gp_01.file.model.domain.vo.ListRecycleBinVO;
-import com.gp_01.file.model.domain.vo.PreviewImagesVO;
-import com.gp_01.file.model.domain.vo.UploadVO;
+import com.gp_01.file.model.domain.vo.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.multipart.MultipartFile;
@@ -73,7 +70,6 @@ public interface IUserFileService extends IService<UserFile> {
     void downloadFile(HttpServletRequest request, HttpServletResponse response, DownloadFileDTO dto);
 
 
-    FileDetail getFileDetail(Long id);
 
     /**
      * 批量删除回收站文件
@@ -82,4 +78,6 @@ public interface IUserFileService extends IService<UserFile> {
     void deleteRecycleFileBatch(List<Long> ids);
 
     void previewFile(HttpServletRequest request, HttpServletResponse response, PreviewFileDTO dto);
+
+    String getDownloadPath(Long id);
 }
