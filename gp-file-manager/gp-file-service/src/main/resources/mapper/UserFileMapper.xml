@@ -34,7 +34,10 @@
     <select id="listByDirIds" resultType="com.gp_01.file.model.domain.po.UserFile">
         with recursive tree as (select t1.id, t1.file_type, t1.file_id
                                 from user_file t1
-                                where id in #{dirIds}
+                                where id in
+                                <foreach collection="dirIds" item="id" open="(" separator="," close=")">
+                                    #{id}
+                                </foreach>
                                 union all
                                 select t2.id, t2.file_type, t2.file_id
                                 from tree t1

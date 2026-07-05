@@ -345,7 +345,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         }
         //2. 上传文件
         //上传分片文件
-        if (!vo.getUploaded()) {
+        if (vo.getUploaded() == null || !vo.getUploaded()) {
             UploadFile uploadFile = new UploadFile();
             BeanUtils.copyProperties(uploadFileDTO, uploadFile);
             UploadFileResult uploadFileResult = minioUploader.uploadFileChunk(uploadFile, file);

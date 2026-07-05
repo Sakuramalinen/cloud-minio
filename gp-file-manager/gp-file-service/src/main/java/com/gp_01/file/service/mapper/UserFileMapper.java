@@ -20,11 +20,11 @@ public interface UserFileMapper extends BaseMapper<UserFile> {
 
 
     /**
-     * 批量回收站查询文件夹下所有文件id
+     * 批量查询回收站中文件夹下所有文件id
      * @param dirIds
      * @return id, fileId, fileType
      */
-    List<UserFile> listByDirIds(List<Long> dirIds);
+    List<UserFile> listByDirIds(@Param("dirIds") List<Long> dirIds);
 
     /**
      * 文件列表分页查询
