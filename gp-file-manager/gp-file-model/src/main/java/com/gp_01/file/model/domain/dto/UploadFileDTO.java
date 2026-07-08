@@ -11,12 +11,13 @@ public class UploadFileDTO{
     @NotBlank
     @SchemaProperty(name = "文件名")
     private String fileName;
+
     @NotNull
     @SchemaProperty(name = "父级目录")
     private Long parentFileId;
 
     @NotNull
-    @Min(value = 1, message = "分片编号不合法")
+    @Min(value = 1)
     @SchemaProperty(name = "当前分片编号")
     private Long currentChunkIndex;
 
@@ -43,6 +44,7 @@ public class UploadFileDTO{
 
     @SchemaProperty(name = "是否启用后端校验")
     private Boolean enableVerify = false;
+
 
 
 

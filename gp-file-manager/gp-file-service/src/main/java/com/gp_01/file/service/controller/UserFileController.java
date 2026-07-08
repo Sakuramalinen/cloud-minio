@@ -49,29 +49,24 @@ public class UserFileController {
                                        @ModelAttribute
                                        @Valid
                                        UploadFileDTO uploadFileDTO) {
-        UploadVO vo = userFileService.uploadFile(file, uploadFileDTO);
+        UploadVO vo = userFileService.upload(file, uploadFileDTO);
         return Result.success(vo);
     }
 
-    //TODO 上传文件夹，
-    @PostMapping("upload/dir/")
-    @Operation(summary = "上传文件夹")
-    public Result<Void> uploadDir() {
-        return null;
-    }
 
 
-    @PostMapping("create/{parentId}/{fileName}")
+    @PostMapping("create/dir")
     @Operation(summary = "新建文件夹")
-    public Result<Void> makeDir(@PathVariable @NotNull
-                                Long parentId,
-                                @PathVariable
-                                @NotBlank
-                                String fileName) {
-        userFileService.makeDir(parentId, fileName);
+    public Result<Void> makeDir( @RequestBody @Valid MakeDirDTO dto) {
+        userFileService.makeDir(dto);
         return Result.success();
     }
-
+    @PostMapping("create/multi-dir")
+    @Operation(summary = "创建层级文件夹")
+    public Result<Long> makeMultiDir(@RequestBody @Valid MakeMultiDirDTO dto){
+        Long dirId = userFileService.makeMultiDir(dto);
+        return Result.success(dirId);
+    }
     @PutMapping()
     @Operation(summary = "文件重命名")
     public Result<Void> reName(@RequestBody @Valid ReNameDTO reNameDTO) {

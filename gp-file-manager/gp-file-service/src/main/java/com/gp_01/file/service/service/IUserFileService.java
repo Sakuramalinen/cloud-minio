@@ -2,9 +2,7 @@ package com.gp_01.file.service.service;
 
 import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
-import com.gp_01.file.model.domain.dto.DownloadFileDTO;
-import com.gp_01.file.model.domain.dto.PreviewFileDTO;
-import com.gp_01.file.model.domain.dto.UploadFileDTO;
+import com.gp_01.file.model.domain.dto.*;
 import com.gp_01.file.model.domain.po.UserFile;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.gp_01.file.model.domain.query.PageFilesQuery;
@@ -13,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.crypto.Mac;
 import java.util.List;
 
 /**
@@ -27,8 +26,9 @@ public interface IUserFileService extends IService<UserFile> {
 
 //    void uploadFile(MultipartFile file, Long parentId, String md5Hex);
 
-    void makeDir(Long parentId, String fileName);
+    Long makeDir(MakeDirDTO dto);
 
+    Long makeMultiDir(MakeMultiDirDTO dto);
     void reName(Long id, String fileName);
 
     void deleteById(Long id);
@@ -65,7 +65,7 @@ public interface IUserFileService extends IService<UserFile> {
 
     List<UserFile> listDirByParentId(Long id);
 
-    UploadVO uploadFile(MultipartFile file, UploadFileDTO uploadFileDTO);
+    UploadVO upload(MultipartFile file, UploadFileDTO uploadFileDTO);
 
     void downloadFile(HttpServletRequest request, HttpServletResponse response, DownloadFileDTO dto);
 

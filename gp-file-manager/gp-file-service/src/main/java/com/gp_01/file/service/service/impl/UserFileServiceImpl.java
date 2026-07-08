@@ -11,9 +11,7 @@ import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.common.exception.CommonException;
 import com.gp_01.common.exception.ForbiddenException;
 import com.gp_01.common.utils.TimeUtils;
-import com.gp_01.file.model.domain.dto.DownloadFileDTO;
-import com.gp_01.file.model.domain.dto.PreviewFileDTO;
-import com.gp_01.file.model.domain.dto.UploadFileDTO;
+import com.gp_01.file.model.domain.dto.*;
 import com.gp_01.file.model.domain.po.FileBase;
 import com.gp_01.file.model.domain.po.UserFile;
 import com.gp_01.file.model.domain.query.PageFilesQuery;
@@ -28,6 +26,7 @@ import com.gp_01.file.service.operation.upload.product.MinioUploader;
 import com.gp_01.file.service.service.IFileBaseService;
 import com.gp_01.file.service.service.IUserFileService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.gp_01.file.service.util.RedisUtils;
 import com.gp_01.file.service.util.ThumbnailUtils;
 import com.gp_01.file.service.util.FileUtils;
 import com.gp_01.file.service.util.HttpUtils;
@@ -37,6 +36,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -74,23 +74,64 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
 
     private final FileUtils fileUtils;
 
+    private final RedisUtils redisUtils;
+
+    /**
+     * 创建单层文件夹
+     * @param dto
+     * @return
+     */
     @Override
-    public void makeDir(Long parentId, String fileName) {
+    public Long makeDir(MakeDirDTO dto) {
         Long userId = UserContext.getUser();
         //判断是否存在
-        boolean exist = fileExist(userId, parentId, fileName);
-        if (exist) {
-            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "该文件夹已存在");
+        UserFile exist = fileExist(userId, dto.getParentId(), dto.getFileName());
+        if (exist != null) {
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "文件夹" + dto.getFileName() + "已存在");
         }
         //组装数据
         UserFile userFile = new UserFile();
         userFile.setUserId(userId);
-        userFile.setParentId(parentId);
-        userFile.setFileName(fileName);
+        userFile.setParentId(dto.getParentId());
+        userFile.setFileName(dto.getFileName());
         userFile.setFileType(DIRECTORY);
 
         //保存到数据库
         super.save(userFile);
+
+        return userFile.getId();
+    }
+
+    /**
+     * 支持创建层级文件夹，如果当前目录存在同名文件夹，将继续创建
+     */
+    @Override
+    public Long makeMultiDir(MakeMultiDirDTO dto) {
+        String[] dirNames = dto.getRelativePath().split("/");
+        Long userId = UserContext.getUser();
+        UserFile exist = new UserFile();
+        Long parentId = dto.getParentId();
+        for (String dirName : dirNames) {
+            //判断是否存在
+            if (exist != null) {
+                exist = fileExist(userId, parentId, dirName);
+            }
+            if (exist != null) {
+                parentId = exist.getId();
+                continue;
+            }
+            //组装数据
+            UserFile userFile = new UserFile();
+            userFile.setUserId(userId);
+            userFile.setParentId(parentId);
+            userFile.setFileName(dirName);
+            userFile.setFileType(DIRECTORY);
+
+            //保存到数据库
+            super.save(userFile);
+            parentId = userFile.getId();
+        }
+        return parentId;
     }
 
     @Override
@@ -316,25 +357,18 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public UploadVO uploadFile(MultipartFile file, UploadFileDTO uploadFileDTO) {
-
+    public UploadVO upload(MultipartFile file, UploadFileDTO uploadFileDTO) {
         Long userId = UserContext.getUser();
         FileBase fileBase = null;
         UploadVO vo = new UploadVO();
 
+
         boolean isNewFile = true;
-
-        if (uploadFileDTO.getCurrentChunkIndex() == 1) {
-            //1.判断该用户当前文件夹内是否有同名文件
-            boolean exist = fileExist(userId, uploadFileDTO.getParentFileId(), uploadFileDTO.getFileName());
-            if (exist) {
-                throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "文件名重复");
-
-            }
-            if (StringUtils.isEmpty(uploadFileDTO.getFileName())) {
-                throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "文件名异常");
-            }
-            //判断是否上传过
+        String key = "gp_01:file_manager:upload:" + userId + ":" + uploadFileDTO.getFileMd5();
+        String cache = redisUtils.get(key);
+        //1.第一个分片上传，进行初始化处理
+        if (cache == null) {
+            //.1判断是否上传过
             fileBase = fileBaseService.exist(uploadFileDTO.getFileMd5());
             if (fileBase != null) {
                 //该文件被上传过， 引用+1
@@ -342,16 +376,24 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
                 isNewFile = false;
                 vo.setUploaded(true);
             }
+            //.2判断该用户当前文件夹内是否有同名文件
+            UserFile exist = fileExist(userId, uploadFileDTO.getParentFileId(), uploadFileDTO.getFileName());
+            if (exist != null) {
+                throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "文件名重复");
+            }
+            cache = isNewFile ? "new" : "old";
+            redisUtils.set(key, cache);
         }
-        //2. 上传文件
-        //上传分片文件
-        if (vo.getUploaded() == null || !vo.getUploaded()) {
-            UploadFile uploadFile = new UploadFile();
-            BeanUtils.copyProperties(uploadFileDTO, uploadFile);
-            UploadFileResult uploadFileResult = minioUploader.uploadFileChunk(uploadFile, file);
+        if(cache.equals("new")){
+            //2. 上传分片文件
+            if (vo.getUploaded() == null || !vo.getUploaded()) {
+                UploadFile uploadFile = new UploadFile();
+                BeanUtils.copyProperties(uploadFileDTO, uploadFile);
+                UploadFileResult uploadFileResult = minioUploader.uploadFileChunk(uploadFile, file);
 
-            vo.setUploaded(uploadFileResult.getUploaded());
-            vo.setProgress(uploadFileResult.getProgress());
+                vo.setUploaded(uploadFileResult.getUploaded());
+                vo.setProgress(uploadFileResult.getProgress());
+            }
         }
 
         //如果还没上传完整，直接返回不存数据库
@@ -363,16 +405,20 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         //准备数据
         String extendName = fileUtils.getFileExtendName(uploadFileDTO.getFileName());
         //获取文件类型
-        LocalDateTime createTime = null;
+        LocalDateTime createTime;
+        String mimeType = null;
         if (fileBase != null) {
             createTime = fileBase.getCreateTime();
+            mimeType = fileBase.getContentType();
         } else {
             createTime = LocalDateTime.now();
         }
-        String integratePath = fileBaseService.getOriginalPath(createTime, uploadFileDTO.getFileMd5(), extendName);
-        String MimeType = fileUtils.getFileType(integratePath, uploadFileDTO.getFileName());
-        FileTypeEnum fileTypeEnum = getFileTypeEnum(MimeType);
-
+        if(mimeType == null){
+            String originalPath = fileBaseService.getOriginalPath(createTime, uploadFileDTO.getFileMd5(), extendName);
+            //获取文件类型
+            mimeType = fileUtils.getFileType(originalPath, uploadFileDTO.getFileName());
+        }
+        FileTypeEnum fileTypeEnum = getFileTypeEnum(mimeType);
 
         LocalDateTime now = LocalDateTime.now();
         //存数据库
@@ -380,7 +426,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
             //准备数据
             fileBase = new FileBase();
             fileBase.setFileSize(uploadFileDTO.getFileSize());
-            fileBase.setContentType(MimeType);
+            fileBase.setContentType(mimeType);
             fileBase.setBucketName(minioConfig.getBucketName());
             String objectPath = fileBaseService.getObjectPath(now, uploadFileDTO.getFileMd5(), extendName);
             fileBase.setObjectPath(objectPath);
@@ -402,7 +448,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         userFile.setFileName(uploadFileDTO.getFileName());
         userFile.setFileSuffix(extendName);
         userFile.setFileSize(uploadFileDTO.getFileSize());
-        userFile.setContentType(MimeType);
+        userFile.setContentType(mimeType);
         userFile.setFileType(fileTypeEnum);
         userFile.setCreateTime(now);
         userFile.setUpdateTime(now);
@@ -521,6 +567,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
             downloadFile = new DownloadFile(previewPath, range[0], range[1] - range[0] + 1, dto.getChunkStreamed());
         } else {
             HttpUtils.setPreviewResponse(response, dto.getFileSize());
+            response.setStatus(200);
             downloadFile = new DownloadFile(previewPath);
         }
 
@@ -551,7 +598,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         if (userFile == null || !userFile.getUserId().equals(userId)) {
             throw new ForbiddenException(ErrorCode.AUTHORITY_ERROR.getCode(), "暂无权限下载该文件");
         }
-        if(userFile.getFileId() == null){
+        if (userFile.getFileId() == null) {
             log.error("数据库UserFile中id为:{}的字段不完整 -> ", id);
             throw new CommonException(ErrorCode.SERVICE_ERROR);
         }
@@ -576,13 +623,12 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
      * @param fileName
      * @return
      */
-    private boolean fileExist(Long userId, Long parentId, String fileName) {
-        UserFile one = lambdaQuery()
+    private UserFile fileExist(Long userId, Long parentId, String fileName) {
+        return lambdaQuery()
                 .eq(UserFile::getUserId, userId)
                 .eq(UserFile::getParentId, parentId)
                 .eq(UserFile::getFileName, fileName)
                 .eq(UserFile::getDeleted, 0)
                 .one();
-        return one != null;
     }
 }
