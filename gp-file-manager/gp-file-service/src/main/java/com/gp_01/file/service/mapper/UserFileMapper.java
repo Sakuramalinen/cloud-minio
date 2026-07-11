@@ -6,7 +6,6 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.gp_01.file.model.domain.query.PageFilesQuery;
 import org.apache.ibatis.annotations.Param;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -18,27 +17,14 @@ import java.util.List;
  * @since 2026-05-08
  */
 public interface UserFileMapper extends BaseMapper<UserFile> {
-    /**
-     * 逻辑删除文件或文件夹下的所有文件
-     * @param id
-     * @param userId
-     * @param timeStamp
-     */
-    void deleteFile(Long id, Long userId, Long timeStamp);
+
 
     /**
-     * 查询父节点下的所有文件id，不包含文件夹
-     * @param id
-     * @return
-     */
-    ArrayList<Long> listFileIdByParentId(Long id, Long userId);
-
-    /**
-     * 批量查询文件夹下所有文件id
+     * 批量查询回收站中文件夹下所有文件id
      * @param dirIds
-     * @return
+     * @return id, fileId, fileType
      */
-    List<Long> listIdsByDirIds(List<Long> dirIds);
+    List<UserFile> listByDirIds(@Param("dirIds") List<Long> dirIds);
 
     /**
      * 文件列表分页查询
@@ -49,6 +35,13 @@ public interface UserFileMapper extends BaseMapper<UserFile> {
      */
     Page<UserFile> listFileByPage(Page<UserFile> page, @Param("query")PageFilesQuery query, @Param("userId") Long userId);
 
+    /**
+     * 查询一个目录中是否有同名文件
+     * @param id
+     * @param userId
+     * @param targetId
+     * @return
+     */
     Integer existsSameFileName(Long id, Long userId, Long targetId);
 
 

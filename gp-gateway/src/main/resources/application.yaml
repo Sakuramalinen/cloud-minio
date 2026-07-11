@@ -20,7 +20,7 @@ spring:
             - id: gp-file-service
               uri: lb://gp-file-service
               predicates:
-                - Path=/user-file/**,/file-base/**
+                - Path=/user-file/**,/file-base/**,/file-transfer/**
             - id: gp-user-service
               uri: lb://gp-user-service
               predicates:

@@ -7,10 +7,7 @@ import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.file.model.domain.dto.*;
 import com.gp_01.file.model.domain.po.UserFile;
 import com.gp_01.file.model.domain.query.PageFilesQuery;
-import com.gp_01.file.model.domain.vo.FileDetail;
-import com.gp_01.file.model.domain.vo.ListRecycleBinVO;
-import com.gp_01.file.model.domain.vo.PreviewImagesVO;
-import com.gp_01.file.model.domain.vo.UploadVO;
+import com.gp_01.file.model.domain.vo.*;
 import com.gp_01.file.service.service.IUserFileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -44,35 +41,20 @@ public class UserFileController {
     private final IUserFileService userFileService;
 
 
-    @PostMapping("upload/file")
-    @Operation(summary = "上传文件", description = "支持断点续传")
-    public Result<UploadVO> uploadFile(@RequestPart("file")
-                                       @NotNull
-                                       MultipartFile file,
-                                       @ModelAttribute
-                                       @Valid
-                                       UploadFileDTO uploadFileDTO) {
-        UploadVO vo = userFileService.uploadFile(file, uploadFileDTO);
-        return Result.success(vo);
-    }
-
-    //TODO 上传文件夹，
-    @PostMapping("upload/dir/")
-    @Operation(summary = "上传文件夹")
-    public Result<Void> uploadDir() {
-        return null;
-    }
 
 
-    @PostMapping("create/{parentId}/{fileName}")
+    @PostMapping("create/dir")
     @Operation(summary = "新建文件夹")
-    public Result<Void> makeDir(@PathVariable @NotNull
-                                Long parentId,
-                                @PathVariable
-                                @NotBlank
-                                String fileName) {
-        userFileService.makeDir(parentId, fileName);
+    public Result<Void> makeDir( @RequestBody @Valid MakeDirDTO dto) {
+        userFileService.makeDir(dto);
         return Result.success();
+    }
+
+    @PostMapping("create/multi-dir")
+    @Operation(summary = "创建层级文件夹")
+    public Result<Long> makeMultiDir(@RequestBody @Valid MakeMultiDirDTO dto){
+        Long dirId = userFileService.makeMultiDir(dto);
+        return Result.success(dirId);
     }
 
     @PutMapping()
@@ -82,6 +64,12 @@ public class UserFileController {
         return Result.success();
     }
 
+    @GetMapping("list")
+    @Operation(summary = "分页查询当前目录")
+    public PageResult<UserFile> queryFilesByParentId(@Valid PageFilesQuery pageFilesQuery) {
+        return userFileService.listFileByParentId(pageFilesQuery);
+    }
+
     @DeleteMapping("{id}")
     @Operation(summary = "删除文件或文件夹")
     public Result<Void> deleteById(@PathVariable @NotNull Long id) {
@@ -89,48 +77,17 @@ public class UserFileController {
         return Result.success();
     }
 
-    @GetMapping("list")
-    @Operation(summary = "分页查询当前目录")
-    public PageResult<UserFile> queryFilesByParentId(@Valid PageFilesQuery pageFilesQuery) {
-        return userFileService.listFileByParentId(pageFilesQuery);
-    }
-
-//    @GetMapping("download/{id}")
-//    @Operation(summary = "下载单个文件")
-//    public void downloadById(@PathVariable Long id, HttpServletResponse response) {
-//        userFileService.downloadById(id, response);
-//    }
-
-    @GetMapping("download/file")
-    @Operation(summary = "下载文件", description = "支持大文件分片下载")
-    public void downloadFile(HttpServletRequest request, HttpServletResponse response, @Valid DownloadFileDTO dto) {
-        userFileService.downloadFile(request, response, dto);
-    }
-
-
-    //    @GetMapping("preview/{id}")
-//    @Operation(summary = "文件预览")
-//    public void previewFileById(@PathVariable String id, HttpServletResponse response) {
-//        userFileService.previewFileById(id, response);
-//    }
-
-    @GetMapping("preview")
-    @Operation(summary = "文件预览", description = "支持大文件分流预览")
-    public void previewFile(HttpServletRequest request, HttpServletResponse response, @Valid PreviewFileDTO dto) {
-        userFileService.previewFile(request, response, dto);
-    }
-
 
     @GetMapping("recycle/list")
     @Operation(summary = "查看回收站")
-    public Result<List<ListRecycleBinVO>> listRecycleBin() {
+    public Result<List<ListRecycleBinVO>> listRecycle() {
         List<ListRecycleBinVO> data = userFileService.listRecycleBin();
         return Result.success(data);
     }
 
     @PutMapping("restore")
     @Operation(summary = "从回收站恢复文件")
-    public Result<Void> restoreFile(@RequestBody @NotEmpty List<Long> ids) {
+    public Result<Void> restoreRecycleFile(@RequestBody @NotEmpty List<Long> ids) {
         userFileService.restoreFile(ids);
         return Result.success();
     }
@@ -156,25 +113,13 @@ public class UserFileController {
         return Result.success(res);
     }
     //TODO 文件分享功能
-
-    @GetMapping("preview/images/list")
-    @Operation(summary = "分页预览照片")
-    public PageResult<PreviewImagesVO> listPreviewImagesByPage(@Valid PageParams params) {
-        return userFileService.pagePreviewImages(params);
-    }
-
     @GetMapping("list/type/{file-type}")
     @Operation(summary = "根据文件类型分页查询")
     public PageResult<UserFile> listFileByTypeAndPage(@Valid PageParams params, @PathVariable("file-type") @NotNull Integer type) {
         return userFileService.listFileByTypeAndPage(params, type);
     }
 
-    @GetMapping("download/detail/{id}")
-    @Operation(summary = "获取文件详细信息")
-    public Result<FileDetail> getFileDetail(@PathVariable @NotNull Long id) {
-        FileDetail fileDetail = userFileService.getFileDetail(id);
-        return Result.success(fileDetail);
-    }
+
 
 
 }

@@ -11,6 +11,8 @@ public interface HttpHeaderConstants {
 
     //file-service
     String FILE_DOWNLOAD_PATH_HEADER = "file-download-path";
-    String FILE_DOWNLOAD_USERID_HEADER = "file-download_user-id";
+    String FILE_DOWNLOAD_USERID_HEADER = "file-download-user-id";
+    String FILE_DOWNLOAD_INFO_TOKEN = "file-download-info-token";
+
 
 }

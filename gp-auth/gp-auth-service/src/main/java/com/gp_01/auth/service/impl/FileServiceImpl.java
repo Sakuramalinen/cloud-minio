@@ -6,16 +6,13 @@ import com.gp_01.auth.utils.JWTUtils;
 import com.gp_01.common.context.UserContext;
 import com.gp_01.common.domain.Result;
 import com.gp_01.api.client.UserFileClient;
-import com.gp_01.file.model.domain.vo.FileDetail;
+import com.gp_01.file.model.domain.vo.DownloadInfoVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 
-import static com.gp_01.common.constants.HttpHeaderConstants.FILE_DOWNLOAD_PATH_HEADER;
-import static com.gp_01.common.constants.HttpHeaderConstants.FILE_DOWNLOAD_USERID_HEADER;
+import static com.gp_01.common.constants.HttpHeaderConstants.*;
+
 
 @Service
 @RequiredArgsConstructor
@@ -31,19 +28,14 @@ public class FileServiceImpl implements IFileService {
     @Override
     public String getDownloadPrivilege(Long id) {
 
-        Result<FileDetail> result = userFileClient.getFileDetail(id);
-        FileDetail fileDetail = result.getData();
-        String createTime = fileDetail.getCreateTime().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
-        String downloadPath = "original/" + createTime + "/" + fileDetail.getFileMd5() + fileDetail.getFileSuffix();
-
-        Long userId = UserContext.getUser();
-
+        Result<DownloadInfoVO> result = userFileClient.getDownloadInfo(id);
+        DownloadInfoVO data = result.getData();
         HashMap<String, Object> claims = new HashMap<>();
-        claims.put(FILE_DOWNLOAD_PATH_HEADER, downloadPath);
-        claims.put(FILE_DOWNLOAD_USERID_HEADER, userId);
+        claims.put(FILE_DOWNLOAD_PATH_HEADER, data.getDownloadPath());
+        claims.put(FILE_DOWNLOAD_USERID_HEADER, data.getUserId());
 
         return jwtUtils.createToken(claims, jwtProperties.getExpire());
-
-
     }
+
+
 }

@@ -8,21 +8,19 @@ public class FileDownloadContext {
     private FileDownloadContext() {
     }
 
-
-    public static String getDownloadPath() {
-        return tl.get().getDownloadPath();
-    }
-
-    public static Long getDownloadUser(){
+    public static Long getUserId(){
         return tl.get().getUserId();
+    }
+    public static String getStorePath(){
+        return tl.get().getStorePath();
     }
 
     public static void set(FileDownloadDTO dto) {
         tl.set(dto);
     }
 
-    public static void set(String downloadPath, Long downloadUserId){
-        tl.set(new FileDownloadDTO(downloadPath, downloadUserId));
+    public static void set(String storePath, Long userId){
+        tl.set(new FileDownloadDTO(storePath, userId));
     }
 
     public static void removeDownloadPath() {

@@ -5,16 +5,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 @Data
 @Component
-@ConfigurationProperties(prefix = "gp.file-manager")
-public class FileManagerServiceProperties {
+@ConfigurationProperties(prefix = "gp.file-service")
+public class FileServiceProperties {
     /**
      * 回收站保存时间
      */
     private Integer recycleSaveDay = 10;
 
-    private String localStoragePath;
-
-    private String rootPath;
-
-//    private String storeType;
 }

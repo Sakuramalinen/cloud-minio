@@ -22,4 +22,5 @@ public class FileController {
         String token = fileService.getDownloadPrivilege(id);
         return Result.success(token);
     }
+
 }

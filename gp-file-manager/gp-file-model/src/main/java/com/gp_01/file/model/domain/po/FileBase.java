@@ -1,8 +1,6 @@
 package com.gp_01.file.model.domain.po;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.SchemaProperty;
 import lombok.Data;
@@ -54,7 +52,7 @@ public class FileBase implements Serializable {
     @SchemaProperty(name = "引用计数")
     private Integer refCount;
 
-//    @TableField(fill = FieldFill.INSERT)
+    @TableField(fill = FieldFill.INSERT)
     @SchemaProperty(name = "创建时间")
     private LocalDateTime createTime;
 
