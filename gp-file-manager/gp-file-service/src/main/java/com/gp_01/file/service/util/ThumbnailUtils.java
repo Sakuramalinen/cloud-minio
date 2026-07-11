@@ -1,5 +1,7 @@
 package com.gp_01.file.service.util;
 
+import com.gp_01.common.enums.ErrorCode;
+import com.gp_01.common.exception.CommonException;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
@@ -32,7 +34,7 @@ public class ThumbnailUtils {
             return os.toByteArray();
         } catch (Exception e){
             log.error("制作缩略图失败：",e);
+            throw new CommonException(ErrorCode.SERVICE_ERROR.getCode(), "制作缩略图失败");
         }
-        return null;
     }
 }

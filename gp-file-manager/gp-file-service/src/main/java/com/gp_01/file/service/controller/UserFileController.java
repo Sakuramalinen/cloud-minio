@@ -41,18 +41,6 @@ public class UserFileController {
     private final IUserFileService userFileService;
 
 
-    @PostMapping("upload/file")
-    @Operation(summary = "上传文件", description = "支持断点续传")
-    public Result<UploadVO> uploadFile(@RequestPart("file")
-                                       @NotNull
-                                       MultipartFile file,
-                                       @ModelAttribute
-                                       @Valid
-                                       UploadFileDTO uploadFileDTO) {
-        UploadVO vo = userFileService.upload(file, uploadFileDTO);
-        return Result.success(vo);
-    }
-
 
 
     @PostMapping("create/dir")
@@ -61,12 +49,14 @@ public class UserFileController {
         userFileService.makeDir(dto);
         return Result.success();
     }
+
     @PostMapping("create/multi-dir")
     @Operation(summary = "创建层级文件夹")
     public Result<Long> makeMultiDir(@RequestBody @Valid MakeMultiDirDTO dto){
         Long dirId = userFileService.makeMultiDir(dto);
         return Result.success(dirId);
     }
+
     @PutMapping()
     @Operation(summary = "文件重命名")
     public Result<Void> reName(@RequestBody @Valid ReNameDTO reNameDTO) {
@@ -74,27 +64,10 @@ public class UserFileController {
         return Result.success();
     }
 
-
-
     @GetMapping("list")
     @Operation(summary = "分页查询当前目录")
     public PageResult<UserFile> queryFilesByParentId(@Valid PageFilesQuery pageFilesQuery) {
         return userFileService.listFileByParentId(pageFilesQuery);
-    }
-
-
-
-    @GetMapping("download/file")
-    @Operation(summary = "下载文件", description = "支持大文件分片下载")
-    public void downloadFile(HttpServletRequest request, HttpServletResponse response, @Valid DownloadFileDTO dto) {
-        userFileService.downloadFile(request, response, dto);
-    }
-
-
-    @GetMapping("preview")
-    @Operation(summary = "文件预览", description = "支持大文件分流预览")
-    public void previewFile(HttpServletRequest request, HttpServletResponse response, @Valid PreviewFileDTO dto) {
-        userFileService.previewFile(request, response, dto);
     }
 
     @DeleteMapping("{id}")
@@ -140,25 +113,13 @@ public class UserFileController {
         return Result.success(res);
     }
     //TODO 文件分享功能
-
-    @GetMapping("preview/images/list")
-    @Operation(summary = "分页预览照片")
-    public PageResult<PreviewImagesVO> listPreviewImagesByPage(@Valid PageParams params) {
-        return userFileService.pagePreviewImages(params);
-    }
-
     @GetMapping("list/type/{file-type}")
     @Operation(summary = "根据文件类型分页查询")
     public PageResult<UserFile> listFileByTypeAndPage(@Valid PageParams params, @PathVariable("file-type") @NotNull Integer type) {
         return userFileService.listFileByTypeAndPage(params, type);
     }
 
-    @GetMapping("download/path/{id}")
-    @Operation(summary = "获取文件下载路径")
-    public Result<String> getDownloadPath(@PathVariable Long id){
-        String path = userFileService.getDownloadPath(id);
-        return Result.success(path);
-    }
+
 
 
 }

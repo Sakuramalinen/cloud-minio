@@ -1,8 +1,8 @@
 package com.gp_01.file.service.util;
 
 
-import com.gp_01.common.enums.FileTypeEnum;
-import com.gp_01.file.service.config.FileManagerServiceProperties;
+import com.gp_01.file.service.config.FileServiceProperties;
+import com.gp_01.file.service.constants.MinioConstants;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -11,50 +11,19 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Paths;
 
-import static com.gp_01.common.enums.FileTypeEnum.*;
 
 @RequiredArgsConstructor
 @Data
 @Component
 public class FileUtils {
-    public static String LOCAL_STORAGE_PATH;
-    public static String ROOT_PATH;
 
-    private final FileManagerServiceProperties properties;
+    private final Tika tika;
 
-    public static final String[] IMG_FILE = {"bmp", "jpg", "png", "tif", "gif", "jpeg"};
-    public static final String[] DOC_FILE = {"doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt", "hlp", "wps", "rtf", "html", "pdf"};
-    public static final String[] VIDEO_FILE = {"avi", "mp4", "mpg", "mov", "swf"};
-    public static final String[] MUSIC_FILE = {"wav", "aif", "au", "mp3", "ram", "wma", "mmf", "amr", "aac", "flac"};
-    public static final String[] TXT_FILE = {"txt", "html", "java", "xml", "js", "css", "json", "sql"};
-
-    private final Tika tika = new Tika();
     private final MinioUtils minioUtils;
 
-    @PostConstruct
-    public void init() {
-        LOCAL_STORAGE_PATH = properties.getLocalStoragePath();
-        ROOT_PATH = properties.getRootPath();
-    }
+    private static final String CHUNK_UPLOAD_SUFFIX = ".chunkUploading";
 
-    public  String getStaticPath() {
-        if (LOCAL_STORAGE_PATH != null && !LOCAL_STORAGE_PATH.isEmpty()) {
-            return Paths.get(LOCAL_STORAGE_PATH).toAbsolutePath().normalize().toString();
-        }
-        return Paths.get(getObjectAbsolutePath(), "static").toAbsolutePath().normalize().toString();
-
-    }
-
-    /**
-     * 获取当前项目绝对路径
-     *
-     * @return
-     */
-    public  String getObjectAbsolutePath() {
-        return System.getProperty("user.dir");
-    }
 
     public  String getFileExtendName(String fileName) {
         return fileName.substring(fileName.lastIndexOf("."));
@@ -64,7 +33,7 @@ public class FileUtils {
      * 从文件二进制中获取contentType
      * @param originalPath 存储路径
      * @param fileName 文件名
-     * @return
+     * @return contentType
      */
     public String getFileType(String originalPath, String fileName){
 
@@ -76,4 +45,24 @@ public class FileUtils {
         }
         return tika.detect(buff, fileName);
     }
+
+    public String getChunkAbsolutionPath(String fileMd5, Long chunkIndex){
+        String basePath = getBasePath(fileMd5);
+        return basePath + "/" + fileMd5 + "_" + chunkIndex + CHUNK_UPLOAD_SUFFIX;
+    }
+
+    public String getOriginalFileStorePath(String fileMd5, String extendName){
+        String basePath = getBasePath(fileMd5);
+        return MinioConstants.ORIGINAL_PATH_HEAD + "/" + basePath+ "/" + fileMd5 + extendName;
+    }
+
+    public String getThumbnailFileStorePath(String fileMd5, String extendName){
+        String basePath = getBasePath(fileMd5);
+        return MinioConstants.THUMBNAIL_PATH_HEAD + "/" + basePath+ "/" + fileMd5 + extendName;
+    }
+
+    public String getBasePath(String fileMd5){
+        return fileMd5.charAt(0) + "/" + fileMd5.charAt(1);
+    }
+
 }

@@ -16,6 +16,18 @@ public class UploadFileDTO{
     @SchemaProperty(name = "父级目录")
     private Long parentFileId;
 
+    @NotBlank
+    @SchemaProperty(name = "文件唯一标识(md5)")
+    private String fileMd5;
+
+    @NotNull
+    @SchemaProperty(name = "文件总大小")
+    private Long fileSize;
+
+    @NotNull
+    @SchemaProperty(name = "分片数量")
+    private Long chunkNumber;
+
     @NotNull
     @Min(value = 1)
     @SchemaProperty(name = "当前分片编号")
@@ -24,26 +36,9 @@ public class UploadFileDTO{
     @SchemaProperty(name = "当前分片大小")
     private Long currentChunkSize;
 
-    @NotNull
-    @SchemaProperty(name = "分片数量")
-    private Long chunkNumber;
 
-    @SchemaProperty(name = "标准分片大小")
-    private Long chunkSize;
 
-    @SchemaProperty(name = "分片唯一表示(md5)")
-    private String chunkMd5;
 
-    @NotNull
-    @SchemaProperty(name = "文件总大小")
-    private Long fileSize;
-
-    @NotBlank
-    @SchemaProperty(name = "文件唯一标识(md5)")
-    private String fileMd5;
-
-    @SchemaProperty(name = "是否启用后端校验")
-    private Boolean enableVerify = false;
 
 
 

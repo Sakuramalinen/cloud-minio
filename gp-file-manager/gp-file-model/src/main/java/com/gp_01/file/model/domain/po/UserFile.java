@@ -54,6 +54,9 @@ public class UserFile implements Serializable {
     @SchemaProperty(name = "文件大小字节")
     private Long fileSize;
 
+    @SchemaProperty(name = "文件唯一标识")
+    private String fileMd5;
+
     @SchemaProperty(name = "MIME类型")
     private String contentType;
 

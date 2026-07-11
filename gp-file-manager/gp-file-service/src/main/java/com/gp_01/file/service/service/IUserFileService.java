@@ -24,7 +24,6 @@ import java.util.List;
  */
 public interface IUserFileService extends IService<UserFile> {
 
-//    void uploadFile(MultipartFile file, Long parentId, String md5Hex);
 
     Long makeDir(MakeDirDTO dto);
 
@@ -35,14 +34,7 @@ public interface IUserFileService extends IService<UserFile> {
 
     PageResult<UserFile> listFileByParentId(PageFilesQuery pageFilesQuery);
 
-    /**
-     * 下载单个文件
-     * @param id
-     * @param response
-     */
-//    void downloadById(Long id, HttpServletResponse response);
 
-//    void previewFileById(String id, HttpServletResponse response);
 
     /**
      * 查看回收站
@@ -55,21 +47,12 @@ public interface IUserFileService extends IService<UserFile> {
      * @param ids
      */
     void restoreFile(List<Long> ids);
-
-
-    PageResult<PreviewImagesVO> pagePreviewImages(PageParams params);
-
+    
     PageResult<UserFile> listFileByTypeAndPage(PageParams params, Integer type);
 
     void moveFile(Long fileId, Long targetId);
 
     List<UserFile> listDirByParentId(Long id);
-
-    UploadVO upload(MultipartFile file, UploadFileDTO uploadFileDTO);
-
-    void downloadFile(HttpServletRequest request, HttpServletResponse response, DownloadFileDTO dto);
-
-
 
     /**
      * 批量删除回收站文件
@@ -77,7 +60,4 @@ public interface IUserFileService extends IService<UserFile> {
      */
     void deleteRecycleFileBatch(List<Long> ids);
 
-    void previewFile(HttpServletRequest request, HttpServletResponse response, PreviewFileDTO dto);
-
-    String getDownloadPath(Long id);
 }

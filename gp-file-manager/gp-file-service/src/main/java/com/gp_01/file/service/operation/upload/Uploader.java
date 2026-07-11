@@ -1,26 +1,16 @@
 package com.gp_01.file.service.operation.upload;
 
-import com.gp_01.common.enums.ErrorCode;
-import com.gp_01.common.exception.CommonException;
-import com.gp_01.common.exception.RecourseIOException;
+import com.gp_01.file.service.constants.RedisConstants;
 import com.gp_01.file.service.operation.upload.domain.UploadFile;
 import com.gp_01.file.service.operation.upload.domain.UploadFileResult;
 import com.gp_01.file.service.util.RedisUtils;
+import io.minio.messages.Upload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
 import org.springframework.web.multipart.MultipartFile;
+import org.xmlunit.builder.Input;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.util.concurrent.TimeUnit;
-
-import static com.gp_01.common.enums.ErrorCode.PARAM_ERROR;
-import static com.gp_01.common.enums.ErrorCode.SERVICE_ERROR;
+import java.io.InputStream;
 
 
 @RequiredArgsConstructor
@@ -28,121 +18,118 @@ import static com.gp_01.common.enums.ErrorCode.SERVICE_ERROR;
 public abstract class Uploader {
 
     private final RedisUtils redisUtils;
-    private final RedissonClient redissonClient;
 
-    public Boolean getUploadStatusFromFile(File progressFile) {
-        try (RandomAccessFile raf = new RandomAccessFile(progressFile, "rw")) {
-            byte[] fileArray = FileUtils.readFileToByteArray(progressFile);
-            for (byte b : fileArray) {
-                if (b != Byte.MAX_VALUE) {
-                    return false;
-                }
-            }
-            boolean deleted = progressFile.delete();
-            return true;
-        } catch (FileNotFoundException e) {
-            log.debug("上传进度文件{}不存在 -> ",progressFile.getAbsolutePath(), e);
-            return false;
-        } catch (IOException e) {
-            log.error("读取进度文件错误 -> ", e);
-            throw new CommonException(SERVICE_ERROR);
-        }
-    }
-
-    public void writeStatusToFile(UploadFile uploadFile, File progressFile) {
-        try (RandomAccessFile raf = new RandomAccessFile(progressFile, "rw")) {
-            //设置文件大小
-            raf.setLength(uploadFile.getChunkNumber());
-            //设置偏移量
-            raf.seek(uploadFile.getCurrentChunkIndex() - 1);
-            //写进度标记
-            raf.write(Byte.MAX_VALUE);
-        } catch (FileNotFoundException e){
-            log.error("写进度文件失败，进度文件{}不存在 -> ", progressFile.getAbsolutePath(), e);
-            throw new RecourseIOException(SERVICE_ERROR);
-        } catch (IOException e) {
-            log.error("写进度文件失败 -> ", e);
-            throw new CommonException(SERVICE_ERROR);
-        }
-    }
-
-    public Long getUploadStatusFromCache(String identifier){
-        String key = "gp_01:file_manager:upload_file:status:" + identifier;
+    /**
+     * 统计已上传切片数量
+     */
+    private Long getUploadedChunkCount(String fileMd5) {
+        String key = RedisConstants.UPLOAD_STATUS_PREFIX + fileMd5;
         return redisUtils.countBitMap(key);
     }
-    public Boolean getUploadChunkStatusFromCache(UploadFile uploadFile){
-        String key = "gp_01:file_manager:upload_file:status:" + uploadFile.getFileMd5();
-        return redisUtils.getBitMap(key, uploadFile.getCurrentChunkIndex() - 1);
-    }
-    public void writeUploadChunkStatusToCache(UploadFile uploadFile){
-        String key = "gp_01:file_manager:upload_file:status:" + uploadFile.getFileMd5();
-        redisUtils.setBitMap(key,uploadFile.getCurrentChunkIndex() - 1, true);
+
+    /**
+     * 判断切片是否已上传
+     */
+    private Boolean isChunkAlreadyUploaded(String fileMd5, Long currentChunkIndex) {
+        String key = RedisConstants.UPLOAD_STATUS_PREFIX + fileMd5;
+        return redisUtils.getBitMap(key, currentChunkIndex - 1);
     }
 
-    public void deleteUploadCHunkStatusToCache(UploadFile uploadFile){
-        String key = "gp_01:file_manager:upload_file:status:" + uploadFile.getFileMd5();
+    /**
+     * 标记切片为已上传
+     */
+    private void makeChunkUploaded(String fileMd5, Long currentChunkIndex) {
+        String key = RedisConstants.UPLOAD_STATUS_PREFIX + fileMd5;
+        redisUtils.setBitMap(key, currentChunkIndex - 1, true);
+    }
+
+    /**
+     * 清除切片进度缓存
+     */
+    private void clearFileChunkProgressCache(String fileMd5) {
+        String key = RedisConstants.UPLOAD_STATUS_PREFIX + fileMd5;
         redisUtils.deletedKey(key);
     }
 
-//    @PreDestroy
-    public void rectifier(UploadFile uploadFile, MultipartFile multipartFile) {
-        int serviceTotal = 3;
-
-        String key = "gp_01:file_manager:upload_file:rectifier:file_md5:" + uploadFile.getFileMd5();
-        String current_upload_chunk_index = "gp_01:file_manager:upload_file:rectifier:chunk_index:" + uploadFile.getCurrentChunkIndex();
-        RLock lock = redissonClient.getLock(key);
-        try {
-            boolean acquired = lock.tryLock(300, TimeUnit.SECONDS);
-            if (!acquired) {
-                log.error("上传文件切片，获取分布式锁超时");
-                throw new CommonException(SERVICE_ERROR.getCode(), "服务器超时");
-            }
-            //如果内存没有分片就把分片一号添加进去
-            if (redisUtils.get(current_upload_chunk_index) == null) {
-                redisUtils.set(current_upload_chunk_index, "1", 1000 * 60 * 60L);
-            }
-            int chunkIndex = Integer.parseInt(redisUtils.get(current_upload_chunk_index));
-            if (chunkIndex != uploadFile.getCurrentChunkIndex()) {
-                lock.unlock();
-                Thread.sleep(100);
-                while (lock.tryLock(300, TimeUnit.SECONDS)) {
-
-                    chunkIndex = Integer.parseInt(redisUtils.get(current_upload_chunk_index));
-
-                    if (uploadFile.getCurrentChunkIndex() <= chunkIndex) {
-                        break;
-                    } else {
-                        if (Math.abs(uploadFile.getCurrentChunkIndex() - chunkIndex) > serviceTotal) {
-                            log.error("当前传入的编号为：{}, 正确传入的编号为：{}", uploadFile.getCurrentChunkIndex(), chunkIndex);
-                            throw new CommonException(PARAM_ERROR.getCode(), "传入切片异常");
-                        }
-                        lock.unlock();
-                        Thread.sleep(100);
-                    }
-                }
-            }
-            if (uploadFile.getCurrentChunkIndex() == chunkIndex) {
-                //执行上传切片功能
-                uploadFileChunk(uploadFile, multipartFile);
-                log.debug("上传文件：{},第{}个切片成功", uploadFile.getFileMd5(), uploadFile.getCurrentChunkIndex());
-                //切片编号+1
-                redisUtils.increment(current_upload_chunk_index);
-            }
-        } catch (Exception e) {
-            log.error("当前切片{}, 文件切片上传失败 -> ", uploadFile.getCurrentChunkIndex(), e);
-            throw new CommonException(SERVICE_ERROR.getCode(), "文件上传失败");
-        } finally {
-            if (lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
+    /**
+     * 默认上传入口
+     * @param uploadFile
+     * @param inputStream
+     * @return
+     */
+    public UploadFileResult defaultUpload(UploadFile uploadFile, InputStream inputStream){
+        if (uploadFile.getIsChunk() || uploadFile.getCurrentChunkSize() == null) {
+            return uploadByChunkFile(uploadFile,inputStream);
+        } else {
+            return uploadBySingleFile(uploadFile, inputStream);
         }
     }
 
-    public abstract UploadFileResult uploadFileChunk(UploadFile uploadFile, MultipartFile multipartFile);
+    /**
+     * 文件切片上传入口
+     * @param uploadFile
+     * @param inputStream
+     * @return
+     */
+    public UploadFileResult uploadByChunkFile(UploadFile uploadFile, InputStream inputStream) {
+        String tempBucketName = "temp";
+        //查看该切片是否上传过
+        if (!isChunkAlreadyUploaded(uploadFile.getFileMd5(), uploadFile.getCurrentChunkIndex())) {
 
-    public UploadFileResult execute(UploadFile uploadFile, MultipartFile multipartFile){
-//        rectifier(uploadFile,multipartFile);
-        return uploadFileChunk(uploadFile, multipartFile);
+            uploadChunk(uploadFile, tempBucketName, inputStream);
+            //写切片状态
+            makeChunkUploaded(uploadFile.getFileMd5(), uploadFile.getCurrentChunkIndex());
+        }
+
+        //判断是否上传完成
+        Long progress = getUploadedChunkCount(uploadFile.getFileMd5());
+        boolean isComplete = progress.equals(uploadFile.getChunkNumber());
+
+        UploadFileResult result = new UploadFileResult();
+        if (isComplete) {
+            try {
+                //合并切片
+                mergeAllChunks(uploadFile, tempBucketName);
+            } finally {
+                //删除临时切片文件
+                deleteAllTempChunks(uploadFile, tempBucketName);
+                //删除进度缓存
+                clearFileChunkProgressCache(uploadFile.getFileMd5());
+            }
+        }
+        result.setProgress(progress);
+        result.setUploaded(isComplete);
+        return result;
     }
+
+    /**
+     * 文件直接上传入口
+     * @param uploadFile
+     * @param inputStream
+     * @return
+     */
+    public abstract UploadFileResult uploadBySingleFile(UploadFile uploadFile, InputStream inputStream);
+
+    /*
+     * 上传切片
+     */
+    public abstract void uploadChunk(UploadFile uploadFile, String tempBucketName, InputStream inputStream);
+
+    /**
+     * 合并所有切片
+     */
+    public abstract void mergeAllChunks(UploadFile uploadFile, String tempBucketName);
+
+    /**
+     * 删除所有切片
+     */
+    public abstract void deleteAllTempChunks(UploadFile uploadFile, String tempBucketName);
+
+    /**
+     * 上传缩略图
+     */
+//    public abstract UploadFileResult uploadThumbnailFile(UploadFile uploadFile, InputStream inputStream);
+//
+//    public abstract UploadFileResult uploadThumbnailFile(UploadFile uploadFile);
 
 }

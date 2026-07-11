@@ -35,7 +35,11 @@ public class HttpUtils {
         }
     }
 
-    public static void setDownloadResponse(HttpServletResponse response, String fileName, Long fileSize, String contentType){
+    /**
+     * 设置范围下载响应头
+     * 该方法会先清空header
+     */
+    public static void setRangeDownloadResponse(HttpServletResponse response, String fileName, Long fileSize, String contentType, Long offset, Long end){
         response.reset();
         //设置为附件下载模式， 设置下载文件名
         ContentDisposition contentDisposition = ContentDisposition.attachment().filename(fileName, StandardCharsets.UTF_8).build();
@@ -43,6 +47,7 @@ public class HttpUtils {
         response.setHeader("Accept-Ranges", "bytes");
         response.setContentLengthLong(fileSize);
         response.setContentType(contentType);
+        response.setContentLengthLong(end - offset + 1);
         response.setStatus(206);
 
     }
@@ -50,20 +55,18 @@ public class HttpUtils {
     /**
      * 设置下载响应头
      * 该方法会先清空header
-     * @param response
-     * @param fileName
-     * @param fileSize
-     * @param contentType
      */
-    public static void setDownloadResponse(HttpServletResponse response, String fileName, Long fileSize, String contentType, Long offset, Long end){
-        setDownloadResponse(response,fileName,fileSize,contentType);
-
-//        response.setHeader("Content-Range", String.format("bytes %d-%d/%d", offset, offset + length, fileSize));
-        response.setHeader("Content-Range", StringUtils.ContentRangeFormat(offset, end, fileSize));
-        response.setContentLengthLong(end - offset + 1);
+    public static void setDownloadResponse(HttpServletResponse response, String fileName, Long fileSize, String contentType){
+        response.reset();
+        //设置为附件下载模式， 设置下载文件名
+        ContentDisposition contentDisposition = ContentDisposition.attachment().filename(fileName, StandardCharsets.UTF_8).build();
+        response.setHeader("Content-Disposition", contentDisposition.toString());
+        response.setContentLengthLong(fileSize);
+        response.setContentType(contentType);
+        response.setStatus(200);
     }
 
-    public static void setPreviewResponse(HttpServletResponse response, Long offset, Long end, Long fileSize, String contentType){
+    public static void setRangePreviewResponse(HttpServletResponse response, Long offset, Long end, Long fileSize, String contentType){
         response.reset();
         response.setHeader("Accept-Ranges", "bytes");
         response.setHeader("Content-Range", StringUtils.ContentRangeFormat(offset, end, fileSize));
@@ -74,10 +77,11 @@ public class HttpUtils {
 
         response.setStatus(206);
     }
-    public static void setPreviewResponse(HttpServletResponse response, Long fileSize){
+    public static void setPreviewResponse(HttpServletResponse response, Long fileSize, String contentType){
         response.reset();
         response.setContentLengthLong(fileSize);
-        response.setStatus(206);
+        response.setContentType(contentType);
+        response.setStatus(200);
     }
 
 

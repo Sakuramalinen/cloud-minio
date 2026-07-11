@@ -8,8 +8,9 @@ import lombok.Data;
 @AllArgsConstructor
 public class FileDownloadDTO {
 
-    @SchemaProperty(name = "下载地址")
-    private String downloadPath;
+    @SchemaProperty(name = "文件存储路径")
+    private String storePath;
+
     @SchemaProperty(name = "登录用户")
     private Long userId;
 }

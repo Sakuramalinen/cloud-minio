@@ -4,7 +4,6 @@ import com.gp_01.authsdk_gateway.config.JWTProperties;
 import com.gp_01.common.domain.dto.FileDownloadDTO;
 import com.gp_01.common.domain.dto.LoginUserDTO;
 import com.gp_01.common.enums.ErrorCode;
-import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.common.exception.ForbiddenException;
 import com.gp_01.common.exception.UnauthorizedException;
 import io.jsonwebtoken.Claims;
@@ -19,8 +18,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
-import static com.gp_01.common.constants.HttpHeaderConstants.FILE_DOWNLOAD_PATH_HEADER;
-import static com.gp_01.common.constants.HttpHeaderConstants.FILE_DOWNLOAD_USERID_HEADER;
+import static com.gp_01.common.constants.HttpHeaderConstants.*;
 
 @RequiredArgsConstructor
 @Component
@@ -74,8 +72,8 @@ public class AuthUtil {
             log.debug("下载token过期");
             throw new ForbiddenException(ErrorCode.AUTHORITY_EXPIRATION_ERROR.getCode(), "下载凭证过期");
         }
-        String path = payload.get(FILE_DOWNLOAD_PATH_HEADER, String.class);
+        String storePath = payload.get(FILE_DOWNLOAD_PATH_HEADER, String.class);
         Long userId = payload.get(FILE_DOWNLOAD_USERID_HEADER, Long.class);
-        return new FileDownloadDTO(path, userId);
+        return new FileDownloadDTO(storePath, userId);
     }
 }

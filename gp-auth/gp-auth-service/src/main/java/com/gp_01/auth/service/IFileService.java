@@ -7,5 +7,4 @@ public interface IFileService {
 
     String getDownloadPrivilege(Long id);
 
-    String getUploadPrivilege( Long id);
 }

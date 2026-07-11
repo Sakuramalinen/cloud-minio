@@ -23,10 +23,4 @@ public class FileController {
         return Result.success(token);
     }
 
-//    @GetMapping("auth/upload/privilege/{id}")
-//    @Operation(summary = "获取上传凭证")
-    public Result<String> getUploadPrivilege(@PathVariable @NotNull Long id){
-        String token = fileService.getUploadPrivilege(id);
-        return Result.success(token);
-    }
 }

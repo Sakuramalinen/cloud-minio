@@ -53,7 +53,7 @@ logging:
     com.gp_01.file: debug
 
 gp:
-  file-manager:
+  file-service:
     recycle-save-day: 10
   minio:
     url: http://localhost:9000
