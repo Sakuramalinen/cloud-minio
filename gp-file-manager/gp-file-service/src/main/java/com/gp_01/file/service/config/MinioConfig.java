@@ -1,5 +1,6 @@
 package com.gp_01.file.service.config;
 
+import io.minio.MinioAsyncClient;
 import io.minio.MinioClient;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -18,8 +19,15 @@ public class MinioConfig {
     private Integer tempSignedUrlExpireMinute;
 
     @Bean
-    public MinioClient minioClient(){
+    public MinioClient minioClient() {
         return new MinioClient.Builder()
+                .endpoint(url)
+                .credentials(accessKey, secretKey)
+                .build();
+    }
+    @Bean
+    public MinioAsyncClient minioAsyncClient() {
+        return new MinioAsyncClient.Builder()
                 .endpoint(url)
                 .credentials(accessKey, secretKey)
                 .build();

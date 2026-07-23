@@ -1,17 +1,21 @@
 package com.gp_01.file.service.util;
 
+import com.gp_01.common.exception.CommonException;
 import com.gp_01.file.service.config.MinioConfig;
-import com.gp_01.file.service.constants.MinioConstants;
 import io.minio.*;
-import io.minio.http.Method;
-import io.minio.messages.Bucket;
+import io.minio.errors.MinioException;
+import io.minio.messages.ListAllMyBucketsResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
+
+import static io.minio.Http.Method.GET;
 
 @Slf4j
 @Component
@@ -21,8 +25,7 @@ public class MinioUtils {
     private final MinioClient minioClient;
     private final MinioConfig minioConfig;
 
-
-
+    private final MinioAsyncClient minioAsyncClient;
 
     /**
      * 判断桶是否存在
@@ -54,7 +57,7 @@ public class MinioUtils {
     /**
      * 获取所有桶集合
      */
-    public List<Bucket> listBuckets() {
+    public List<ListAllMyBucketsResult.Bucket> listBuckets() {
         try {
             return minioClient.listBuckets();
         } catch (Exception e) {
@@ -88,7 +91,7 @@ public class MinioUtils {
                     .object(storePath)
                     .build());
         } catch (Exception e) {
-            log.error("下载文件失败：下载路径：{} -> ",storePath, e);
+            log.error("下载文件失败：下载路径：{} -> ", storePath, e);
             throw new RuntimeException(e);
         }
     }
@@ -97,8 +100,8 @@ public class MinioUtils {
      * 范围下载
      *
      * @param storePath 文件存储路径
-     * @param offset 下载起始地址
-     * @param len 下载长度
+     * @param offset    下载起始地址
+     * @param len       下载长度
      * @return 分片输入流
      */
     public InputStream downloadFile(String storePath, Long offset, Long len) {
@@ -110,7 +113,7 @@ public class MinioUtils {
                     .length(len)
                     .build());
         } catch (Exception e) {
-            log.error("下载文件失败：下载路径：{} -> ",storePath, e);
+            log.error("下载文件失败：下载路径：{} -> ", storePath, e);
             throw new RuntimeException(e);
         }
     }
@@ -119,7 +122,7 @@ public class MinioUtils {
         try {
             PutObjectArgs args = PutObjectArgs.builder()
                     .bucket(minioConfig.getBucketName())
-                    .stream(inputStream, fileSize, -1)
+                    .stream(inputStream, fileSize, -1L)
                     .object(storePath)
                     .build();
             minioClient.putObject(args);
@@ -129,6 +132,24 @@ public class MinioUtils {
         }
     }
 
+    /**
+     * 获取文件ETAG
+     * @param bucketName
+     * @param objectPath
+     * @return
+     */
+    public String getFielETag(String bucketName, String objectPath) {
+        StatObjectArgs args = StatObjectArgs.builder()
+                .bucket(bucketName)
+                .object(objectPath)
+                .build();
+        try {
+            StatObjectResponse response = minioClient.statObject(args);
+            return response.etag();
+        } catch (MinioException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     /**
      * 批量获取临时签名url
@@ -140,7 +161,7 @@ public class MinioUtils {
     public String getTempSignedUrl(String path, int expireMinute) {
         try {
             return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
-                    .method(Method.GET)
+                    .method(GET)
                     .bucket(minioConfig.getBucketName())
                     .object(path)
                     .expiry(expireMinute, TimeUnit.MINUTES)
@@ -151,6 +172,23 @@ public class MinioUtils {
         }
     }
 
+    /**
+     * 清理上传中断分片文件
+     * @param bucketName
+     * @param objectPath
+     * @param uploadId
+     */
+    public void abortInCompleteMultipartUpload(String bucketName, String objectPath, String uploadId){
+        AbortMultipartUploadArgs args = AbortMultipartUploadArgs.builder()
+                .bucket(bucketName)
+                .object(objectPath)
+                .uploadId(uploadId).build();
+        minioAsyncClient.abortMultipartUpload(args).whenComplete((abortMultipartUploadResponse, throwable) -> {
+            if (throwable != null) {
+                log.error("清理中断分片文件bucket={} object={} uploadId={}", bucketName, objectPath, uploadId);
+            }
+        });
+    }
 
 
 }

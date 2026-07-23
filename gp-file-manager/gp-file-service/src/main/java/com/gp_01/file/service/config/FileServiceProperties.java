@@ -10,6 +10,6 @@ public class FileServiceProperties {
     /**
      * 回收站保存时间
      */
-    private Integer recycleSaveDay = 10;
+    private Long recycleSaveDay = 14L;
 
 }

@@ -1,46 +1,34 @@
 package com.gp_01.file.service.service.impl;
 
+import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.gp_01.common.context.FileDownloadContext;
 import com.gp_01.common.context.UserContext;
 import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.exception.BadRequestException;
-import com.gp_01.common.exception.CommonException;
-import com.gp_01.common.exception.ForbiddenException;
 import com.gp_01.common.utils.TimeUtils;
 import com.gp_01.file.model.domain.dto.*;
-import com.gp_01.file.model.domain.po.FileBase;
 import com.gp_01.file.model.domain.po.UserFile;
 import com.gp_01.file.model.domain.query.PageFilesQuery;
 import com.gp_01.file.model.domain.vo.*;
-import com.gp_01.file.service.config.MinioConfig;
-import com.gp_01.file.service.mapper.FileBaseMapper;
+import com.gp_01.file.service.config.FileServiceProperties;
+import com.gp_01.file.service.mapper.FileObjectMapper;
 import com.gp_01.file.service.mapper.UserFileMapper;
-import com.gp_01.file.service.operation.download.domain.DownloadFile;
-import com.gp_01.file.service.operation.download.product.MinioDownloader;
-import com.gp_01.file.service.operation.upload.product.MinioUploader;
-import com.gp_01.file.service.service.IFileBaseService;
 import com.gp_01.file.service.service.IUserFileService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.gp_01.file.service.util.*;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import com.gp_01.file.service.util.FileUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.InputStream;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
-
-import static com.gp_01.common.enums.FileTypeEnum.*;
 
 /**
  * <p>
@@ -55,10 +43,13 @@ import static com.gp_01.common.enums.FileTypeEnum.*;
 @RequiredArgsConstructor
 public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> implements IUserFileService {
 
-
     private final UserFileMapper userFileMapper;
 
-    private final FileBaseMapper fileBaseMapper;
+    private final FileUtils fileUtils;
+
+    private final FileObjectMapper fileObjectMapper;
+
+    private final FileServiceProperties fileServiceProperties;
 
 
     /**
@@ -77,7 +68,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         userFile.setUserId(userId);
         userFile.setParentId(dto.getParentId());
         userFile.setFileName(dto.getFileName());
-        userFile.setFileType(DIRECTORY);
+        userFile.setIsDirectory(1);
 
         //保存到数据库
         super.save(userFile);
@@ -108,7 +99,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
             userFile.setUserId(userId);
             userFile.setParentId(parentId);
             userFile.setFileName(dirName);
-            userFile.setFileType(DIRECTORY);
+            userFile.setIsDirectory(1);
 
             //保存到数据库
             super.save(userFile);
@@ -121,12 +112,9 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
     public void reName(Long id, String fileName) {
         Long userId = UserContext.getUser();
         //查数据
-        UserFile one = lambdaQuery().eq(UserFile::getId, id).one();
+        UserFile one = lambdaQuery().eq(UserFile::getId, id).eq(UserFile::getUserId, userId).one();
         if (one == null) {
-            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "空数据");
-        }
-        if (!Objects.equals(one.getUserId(), userId)) {
-            throw new ForbiddenException(ErrorCode.UNAUTHORIZED_ERROR.getCode(), "用户无权限操作");
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "该数据不存在");
         }
         //判断是否有同名文件
         boolean exist = existSameFileName(userId, one.getParentId(), fileName);
@@ -146,6 +134,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
                 .eq(UserFile::getUserId, userid)
                 .eq(UserFile::getParentId, parentId)
                 .eq(UserFile::getFileName, fileName)
+                .eq(UserFile::getDeleted, 0L)
                 .one();
         return one != null;
     }
@@ -155,12 +144,9 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
     public void deleteById(Long id) {
         Long userId = UserContext.getUser();
         //查数据
-        UserFile one = lambdaQuery().eq(UserFile::getId, id).one();
+        UserFile one = lambdaQuery().eq(UserFile::getId, id).eq(UserFile::getUserId, userId).one();
         if (one == null) {
-            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "空数据");
-        }
-        if (!Objects.equals(one.getUserId(), userId)) {
-            throw new ForbiddenException(ErrorCode.UNAUTHORIZED_ERROR.getCode(), "用户无权限操作");
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "该数据不存在");
         }
         Long timeStamp = Instant.now().toEpochMilli();
 
@@ -176,11 +162,24 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
     @Override
     public PageResult<UserFile> listFileByParentId(PageFilesQuery query) {
         Long userId = UserContext.getUser();
-        Page<UserFile> page = query.toPage();
         //条件分页查询
-        userFileMapper.listFileByPage(page, query, userId);
+        LambdaQueryChainWrapper<UserFile> userFileWrapper = lambdaQuery()
+                .eq(UserFile::getUserId, userId)
+                .eq(UserFile::getDeleted, 0)
+                .eq(UserFile::getParentId, query.getParentId())
+                .orderByDesc(UserFile::getIsDirectory);
+        if (query.getSortBy() != null) {
+            userFileWrapper
+                    .orderBy(query.getSortBy().equals("fileSize"), query.getIsAsc(), UserFile::getFileSize)
+                    .orderBy(query.getSortBy().equals("fileName"), query.getIsAsc(), UserFile::getFileName)
+                    .orderBy(query.getSortBy().equals("updateTime"), query.getIsAsc(), UserFile::getUpdateTime)
+                    .orderBy(query.getSortBy().equals("fileType"), query.getIsAsc(), UserFile::getMediaCategory);
+        }
+        Page<UserFile> page = userFileWrapper.page(query.toPage());
+        List<UserFile> records = page.getRecords();
+
         //如果没数据返回空集合
-        if (page.getRecords().isEmpty()) {
+        if (records == null || records.isEmpty()) {
             return PageResult.empty(page);
         }
 
@@ -189,45 +188,73 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
 
 
     @Override
-    public List<ListRecycleBinVO> listRecycleBin() {
+    public PageResult<ListRecycleBinVO> recyclePage(PageParams params) {
         Long userId = UserContext.getUser();
-        //TODO 提取到配置文件 获得30天的时间戳
-        long limitTime = Instant.now().minusSeconds(60 * 60 * 24 * 30).toEpochMilli();
+        long minusDay = fileServiceProperties.getRecycleSaveDay() * 60 * 60 * 24;
+        long limitTime = Instant.now().minusSeconds(minusDay).toEpochMilli();
         //查数据库
-        List<UserFile> list = lambdaQuery()
+        Page<UserFile> page = lambdaQuery()
                 .eq(UserFile::getUserId, userId)
                 .ge(UserFile::getDeleted, limitTime)
-                .list();
-        if (list == null) {
-            return List.of();
+                .page(params.toPage());
+        if (page.getRecords() == null) {
+            return PageResult.empty();
         }
         List<ListRecycleBinVO> res = new ArrayList<>();
-        for (UserFile userFile : list) {
+        for (UserFile userFile : page.getRecords()) {
             ListRecycleBinVO vo = new ListRecycleBinVO();
             BeanUtils.copyProperties(userFile, vo);
             //设置独有属性
             LocalDateTime deleteTime = TimeUtils.milliToLocalDateTime(userFile.getDeleted());
-            long validDay = 14 - ChronoUnit.DAYS.between(deleteTime, LocalDateTime.now());
+            long validDay = fileServiceProperties.getRecycleSaveDay() - ChronoUnit.DAYS.between(deleteTime, LocalDateTime.now());
             vo.setValidDay(validDay);
             vo.setDeleteTime(deleteTime);
             res.add(vo);
         }
-        return res;
-
+        return new PageResult<>(page.getTotal(), page.getSize(), page.getCurrent(), res);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void restoreFile(List<Long> ids) {
-        //TODO优化
         Long userId = UserContext.getUser();
-        //修改数据库 逻辑删除为0
-        lambdaUpdate()
-                .in(UserFile::getId, ids)
+        //查数据库获取所有将要恢复的文件信息
+        List<UserFile> userFileList = lambdaQuery()
                 .eq(UserFile::getUserId, userId)
-                .set(UserFile::getDeleted, 0)
-                .update();
-    }
+                .in(UserFile::getId, ids)
+                .list();
+        if (userFileList.isEmpty()) {
+            return;
+        }
+        //同一个目录下的文件进行分组
+        Map<Long, List<UserFile>> userFileGroupMap = userFileList
+                .stream()
+                .collect(Collectors.groupingBy(UserFile::getParentId));
 
+        for (Map.Entry<Long, List<UserFile>> entry : userFileGroupMap.entrySet()) {
+            Long parentId = entry.getKey();
+            List<UserFile> userFiles = entry.getValue();
+            //按照每个目录进行查数据库获取目录下未删除文件名
+            Set<String> fileNames = lambdaQuery()
+                    .eq(UserFile::getUserId, userId)
+                    .eq(UserFile::getParentId, parentId)
+                    .eq(UserFile::getDeleted, 0L)
+                    .list()
+                    .stream()
+                    .map(UserFile::getFileName)
+                    .collect(Collectors.toSet());
+            //给当下每个文件进行重新创建安全文件名
+            for (UserFile userFile : userFiles) {
+                String safeFileName = fileUtils.getSafeFileName(userFile.getFileName(), fileNames);
+                fileNames.add(safeFileName);
+                userFile.setFileName(safeFileName);
+                userFile.setDeleted(0L);
+
+            }
+        }
+        //统一修改数据库
+        updateBatchById(userFileList);
+    }
 
 
     @Override
@@ -237,7 +264,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         //条件查询
         Page<UserFile> page = lambdaQuery()
                 .eq(UserFile::getUserId, userId)
-                .eq(UserFile::getFileType, type)
+                .eq(UserFile::getMediaCategory, type)
                 .eq(UserFile::getDeleted, 0)
                 .page(params.toPage());
 
@@ -274,9 +301,9 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         Long userId = UserContext.getUser();
         List<UserFile> list = super.lambdaQuery()
                 .eq(UserFile::getUserId, userId)
-                .eq(UserFile::getDeleted, 0)
                 .eq(UserFile::getParentId, parentId)
-                .eq(UserFile::getFileType, DIRECTORY)
+                .eq(UserFile::getDeleted, 0)
+                .eq(UserFile::getIsDirectory, 1)
                 .list();
         if (list == null) {
             return List.of();
@@ -292,16 +319,16 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         List<UserFile> list = super.lambdaQuery()
                 .eq(UserFile::getUserId, userId)
                 .in(UserFile::getId, ids)
-                .ne(UserFile::getDeleted, 0).list();
-
+                .ne(UserFile::getDeleted, 0)
+                .list();
 
         List<Long> dirIds = new ArrayList<>();
         List<Long> fileIds = new ArrayList<>();
         for (UserFile userFile : list) {
-            if (userFile.getFileType() == DIRECTORY) {
+            if (userFile.getIsDirectory() == 1) {
                 dirIds.add(userFile.getId());
             } else {
-                fileIds.add(userFile.getFileId());
+                fileIds.add(userFile.getObjectId());
             }
         }
         //查询出文件夹的所有文件
@@ -309,14 +336,15 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         if (!dirIds.isEmpty()) {
             files = userFileMapper.listByDirIds(dirIds);
             for (UserFile file : files) {
-                if (file.getFileType() != DIRECTORY) {
-                    fileIds.add(file.getFileId());
+                if (file.getIsDirectory() == 0) {
+                    fileIds.add(file.getObjectId());
                 }
             }
         }
-
-        //将该文件引用数-1
-        fileBaseMapper.minusRefCountBatch(fileIds);
+        if(!fileIds.isEmpty()){
+            //将该文件引用数-1
+            fileObjectMapper.minusRefCountBatch(fileIds);
+        }
 
         //删除文件
         HashSet<Long> deleteIds = new HashSet<>();

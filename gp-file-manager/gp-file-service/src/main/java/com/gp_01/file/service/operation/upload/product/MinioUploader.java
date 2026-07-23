@@ -1,160 +1,126 @@
 package com.gp_01.file.service.operation.upload.product;
 
-import com.gp_01.file.model.domain.po.FileBase;
-import com.gp_01.file.service.config.MinioConfig;
-import com.gp_01.file.service.operation.download.domain.DownloadFile;
+
+import com.gp_01.common.enums.ErrorCode;
+import com.gp_01.common.exception.CommonException;
 import com.gp_01.file.service.operation.upload.Uploader;
-import com.gp_01.file.service.operation.upload.domain.UploadFile;
-import com.gp_01.file.service.operation.upload.domain.UploadFileResult;
-import com.gp_01.file.service.util.MinioUtils;
-import com.gp_01.file.service.util.RedisUtils;
-import com.gp_01.file.service.util.ThumbnailUtils;
+import com.gp_01.file.service.operation.upload.domain.DirectConnectionUploadFileParam;
+
 import io.minio.*;
-import io.minio.messages.DeleteError;
-import io.minio.messages.DeleteObject;
+import io.minio.errors.*;
+
+import io.minio.messages.Part;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.xmlunit.builder.Input;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+
 
 //@RequiredArgsConstructor
 //@Component("minio_uploader")
 @Component
 @Slf4j
 public class MinioUploader extends Uploader {
-
-
-//    @Autowired
-//    private MinioUtils minioUtils;
-
-//    @Autowired
-//    private MinioConfig minioConfig;
-
     @Autowired
     private MinioClient minioClient;
 
     @Autowired
-    private ThumbnailUtils thumbnailUtils;
+    private MinioAsyncClient minioAsyncClient;
 
 
-    public MinioUploader(RedisUtils redisUtils) {
-        super(redisUtils);
-    }
+    /**
+     * 分片上传第一步，需要获取上传id
+     */
+    public String getUploadId(String bucketName, String objectPath) {
 
-
-    @Override
-    public void uploadChunk(UploadFile uploadFile, String tempBucketName, InputStream inputStream) {
+        CreateMultipartUploadArgs args = CreateMultipartUploadArgs.builder()
+                .bucket(bucketName)
+                .object(objectPath)
+                .build();
         try {
-            PutObjectArgs args = PutObjectArgs.builder()
-                    .bucket(tempBucketName)
-                    .object(uploadFile.getUploadPath())
-                    .stream(inputStream, uploadFile.getCurrentChunkSize(), -1)
-                    .build();
-            minioClient.putObject(args);
+            CreateMultipartUploadResponse createMultipartUploadResponse = minioAsyncClient.createMultipartUpload(args).get();
+            return createMultipartUploadResponse.result().uploadId();
         } catch (Exception e) {
-            throw new RuntimeException("minio上传失败：", e);
+            log.error("上传文件获取uploadId失败, path: {}", objectPath, e);
+            throw new CommonException(ErrorCode.BUSINESS_ERROR.getCode(), "生成上传链接失败");
         }
     }
 
-    @Override
-    public UploadFileResult uploadBySingleFile(UploadFile uploadFile, InputStream inputStream) {
+    /**
+     * 获取完整文件上传url
+     */
+    public String getWholeUploadUrl(String bucketName, String objectPath, Integer expiry, TimeUnit timeUnit) {
+        GetPresignedObjectUrlArgs args = GetPresignedObjectUrlArgs.builder()
+                .method(Http.Method.PUT)
+                .expiry(expiry, timeUnit)
+                .bucket(bucketName)
+                .object(objectPath)
+                .build();
         try {
-            //获取存储路径
-            PutObjectArgs args = PutObjectArgs.builder()
-                    .bucket(uploadFile.getBucketName())
-                    .stream(inputStream, uploadFile.getFileSize(), -1)
-                    .object(uploadFile.getUploadPath())
-                    .build();
-            minioClient.putObject(args);
-            return new UploadFileResult(true, 1L);
+            return minioAsyncClient.getPresignedObjectUrl(args);
         } catch (Exception e) {
-            log.error("上传文件失败：", e);
-            throw new RuntimeException(e);
+            log.error("生成预签名URL失败, path: {}", objectPath, e);
+            throw new CommonException(ErrorCode.BUSINESS_ERROR.getCode(), "生成上传链接失败");
         }
     }
 
-    @Override
-    public void mergeAllChunks(UploadFile uploadFile, String tempBucketName) {
-        //准备合并参数
-        List<ComposeSource> sources = new ArrayList<>();
-        for (long i = 1; i <= uploadFile.getChunkNumber(); i++) {
-            ComposeSource composeSource = ComposeSource.builder()
-                    .bucket(tempBucketName)
-                    .object(uploadFile.getUploadPath())
+    /**
+     * 获取所有切片上传url
+     */
+    public Map<Integer, String> getChunkUploadUrls(String bucketName, String objectPath, String uploadId, List<Integer> chunkNumbers,  Integer expiry, TimeUnit timeUnit) {
+        Map<Integer, String> urls = new HashMap<>();
+        for(Integer chunkNumber : chunkNumbers){
+            //构建上传url
+            Map<String, String> map = new HashMap<>();
+            map.put("uploadId", uploadId);
+            map.put("partNumber", String.valueOf(chunkNumber));
+            GetPresignedObjectUrlArgs args = GetPresignedObjectUrlArgs.builder()
+                    .method(Http.Method.PUT)
+                    .expiry(expiry, timeUnit)
+                    .bucket(bucketName)
+                    .object(objectPath)
+                    .extraQueryParams(map)
                     .build();
-            sources.add(composeSource);
-        }
-        try {
-            //获取合并后存储路径
-            ComposeObjectArgs args = ComposeObjectArgs.builder()
-                    .bucket(uploadFile.getBucketName())
-                    .object(uploadFile.getUploadPath())
-                    .sources(sources)
-                    .build();
-            //合并
-            minioClient.composeObject(args);
-        } catch (Exception e) {
-            throw new RuntimeException("文件合并失败：", e);
-        }
-    }
-
-    @Override
-    public void deleteAllTempChunks(UploadFile uploadFile, String tempBucketName) {
-        try {
-            List<DeleteObject> deletedObjects = new ArrayList<>();
-            for (long i = 1; i <= uploadFile.getChunkNumber(); i++) {
-                DeleteObject obj = new DeleteObject(uploadFile.getUploadPath());
-                deletedObjects.add(obj);
+            try {
+                String url = minioAsyncClient.getPresignedObjectUrl(args);
+                urls.put(chunkNumber, url);
+            } catch (Exception e) {
+                log.error("生成预签名URL失败, path: {}", objectPath, e);
+                throw new CommonException(ErrorCode.BUSINESS_ERROR.getCode(), "生成上传链接失败");
             }
-            RemoveObjectsArgs args = RemoveObjectsArgs.builder()
-                    .bucket(tempBucketName)
-                    .objects(deletedObjects)
-                    .build();
-            Iterable<Result<DeleteError>> results = minioClient.removeObjects(args);
-            for (Result<DeleteError> result : results) {
-                DeleteError error = result.get();
-                if (error != null) {
-                    log.error("删除切片失败：{}", error.objectName());
-                }
-            }
-        } catch (Exception e) {
-            throw new RuntimeException("切片删除错误", e);
         }
+        return urls;
     }
 
-//    @Override
-//    public UploadFileResult uploadThumbnailFile(UploadFile uploadFile, InputStream inputStream) {
-//        if (inputStream == null) {
-//            String storePath = minioUtils.getOriginalFileAbsolutionPath(uploadFile.getFileMd5(), uploadFile.getExtendName());
-//            inputStream = minioUtils.downloadFile(storePath);
-//        }
-//        //构建存储路径
-//        String thumbnailStorePath = minioUtils.getThumbnailFileAbsolutionPath(uploadFile.getFileMd5(), uploadFile.getExtendName());
-//        byte[] thumbnailBytes = thumbnailUtils.createThumbnailBytes(inputStream);
-//        //上传缩略图
-//        minioUtils.uploadFile(new ByteArrayInputStream(thumbnailBytes), (long) thumbnailBytes.length, thumbnailStorePath);
-//        return new UploadFileResult(true, 1L, thumbnailStorePath);
-//    }
-//
-//    @Override
-//    public UploadFileResult uploadThumbnailFile(UploadFile uploadFile) {
-//
-//        String storePath = minioUtils.getOriginalFileAbsolutionPath(uploadFile.getFileMd5(), uploadFile.getExtendName());
-//        InputStream inputStream = minioUtils.downloadFile(storePath);
-//        //构建存储路径
-//        String thumbnailStorePath = minioUtils.getThumbnailFileAbsolutionPath(uploadFile.getFileMd5(), uploadFile.getExtendName());
-//        byte[] thumbnailBytes = thumbnailUtils.createThumbnailBytes(inputStream);
-//        //上传缩略图
-//        minioUtils.uploadFile(new ByteArrayInputStream(thumbnailBytes), (long) thumbnailBytes.length, thumbnailStorePath);
-//        return new UploadFileResult(true, 1L, thumbnailStorePath);
-//    }
+    /**
+     * 切片合并
+     */
+    public String chunkFileMerge(String bucketName, String objectPath, String uploadId, Map<Integer, String> partMap) {
 
+        Part[] parts = new Part[partMap.size()];
+        int index = 0;
+        for (Map.Entry<Integer, String> entry : partMap.entrySet()) {
+            parts[index++] = new Part(entry.getKey(), entry.getValue());
+        }
 
+        CompleteMultipartUploadArgs args = CompleteMultipartUploadArgs.builder()
+                .bucket(bucketName)
+                .uploadId(uploadId)
+                .object(objectPath)
+                .parts(parts)
+                .build();
+        try {
+            ObjectWriteResponse objectWriteResponse = minioAsyncClient.completeMultipartUpload(args).get();
+            return objectWriteResponse.etag();
+        } catch (Exception e) {
+            log.error("合并分片失败, path: {}", objectPath, e);
+            throw new CommonException(ErrorCode.BUSINESS_ERROR.getCode(), "文件校验失败");
+        }
+    }
 }

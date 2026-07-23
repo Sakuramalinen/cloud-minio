@@ -2,54 +2,35 @@ package com.gp_01.file.service.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.gp_01.common.context.FileDownloadContext;
 import com.gp_01.common.context.UserContext;
 import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.enums.FileTypeEnum;
 import com.gp_01.common.exception.BadRequestException;
-import com.gp_01.common.exception.CommonException;
-import com.gp_01.common.exception.ForbiddenException;
-import com.gp_01.common.exception.UnauthorizedException;
-import com.gp_01.file.model.domain.dto.DownloadFileDTO;
+import com.gp_01.file.model.domain.cache.redis.UploadFileCache;
 import com.gp_01.file.model.domain.dto.PreviewFileDTO;
-import com.gp_01.file.model.domain.dto.UploadFileDTO;
-import com.gp_01.file.model.domain.po.FileBase;
+import com.gp_01.file.model.domain.dto.UploadAuthorizationDTO;
+import com.gp_01.file.model.domain.po.FileObject;
 import com.gp_01.file.model.domain.po.UserFile;
-import com.gp_01.file.model.domain.vo.DownloadInfoVO;
 import com.gp_01.file.model.domain.vo.PreviewImagesVO;
-import com.gp_01.file.model.domain.vo.UploadVO;
+import com.gp_01.file.model.domain.vo.UploadFileVO;
 import com.gp_01.file.service.config.MinioConfig;
-import com.gp_01.file.service.mapper.FileBaseMapper;
+import com.gp_01.file.service.mapper.FileObjectMapper;
 import com.gp_01.file.service.mapper.UserFileMapper;
 import com.gp_01.file.service.operation.download.Downloader;
 import com.gp_01.file.service.operation.download.domain.DownloadFile;
-import com.gp_01.file.service.operation.upload.Uploader;
-import com.gp_01.file.service.operation.upload.domain.UploadFile;
-import com.gp_01.file.service.operation.upload.domain.UploadFileResult;
-import com.gp_01.file.service.service.IFileBaseService;
+import com.gp_01.file.service.operation.preview.product.MinioPreviewer;
+import com.gp_01.file.service.operation.upload.product.MinioUploader;
 import com.gp_01.file.service.service.IFileTransferService;
 import com.gp_01.file.service.util.*;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import static com.gp_01.common.enums.FileTypeEnum.*;
 
 @Service
 @RequiredArgsConstructor
@@ -58,7 +39,9 @@ public class FileTransferServiceImpl implements IFileTransferService {
 
     private final Downloader downloader;
 
-    private final Uploader uploader;
+    private final MinioPreviewer minioPreviewer;
+
+    private final MinioUploader minioUploader;
 
     private final RedisUtils redisUtils;
 
@@ -66,7 +49,7 @@ public class FileTransferServiceImpl implements IFileTransferService {
 
     private final UserFileMapper userFileMapper;
 
-    private final FileBaseMapper fileBaseMapper;
+    private final FileObjectMapper fileObjectMapper;
 
     private final MinioConfig minioConfig;
 
@@ -74,308 +57,264 @@ public class FileTransferServiceImpl implements IFileTransferService {
 
     private final ThumbnailUtils thumbnailUtils;
 
+    @Override
+    public String directionConnectionDownload(Long id) {
+        Long userId = UserContext.getUser();
+        //查数据库获取文件信息
+        LambdaQueryWrapper<UserFile> selectOneWrapper = new LambdaQueryWrapper<UserFile>()
+                .eq(UserFile::getId, id)
+                .eq(UserFile::getUserId, userId)
+                .eq(UserFile::getDeleted, 0);
+        UserFile userFile = userFileMapper.selectOne(selectOneWrapper);
+        if (userFile == null) {
+            throw new BadRequestException(ErrorCode.RECOURSE_NOT_FOUND_ERROR.getCode(), "资源不存在");
+        }
+        //查数据库获取下载路径
+        FileObject fileBase = fileObjectMapper.selectById(userFile.getObjectId());
+        if (fileBase == null) {
+            log.error("数据库不一致user_file.file_id = {}, file_base = null", userFile.getObjectId());
+            throw new BadRequestException(ErrorCode.RECOURSE_NOT_FOUND_ERROR.getCode(), "资源不存在");
+        }
+
+        String contentType = fileBase.getContentType();
+        String fileName = userFile.getFileName();
+        String downloadPath = fileBase.getObjectPath();
+
+        //获取预签名url
+        DownloadFile downloadFile = new DownloadFile(minioConfig.getBucketName(), contentType, fileName, downloadPath, 5, TimeUnit.MINUTES);
+        return downloader.downloadByIssuePreSignedUrl(downloadFile);
+    }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    public UploadVO uploadFile(MultipartFile file, UploadFileDTO dto) {
+    public UploadFileVO uploadAuthorize(UploadAuthorizationDTO dto) {
         Long userId = UserContext.getUser();
-        UploadVO vo = new UploadVO();
 
-        String key = "gp_01:file:upload:" + userId + ":" + dto.getFileMd5();
-        String cache = redisUtils.get(key);
-        if (cache == null) {
-            //1.第一个分片上传，进行初始化处理
-            cache = uploadInit(dto, key);
+        //判断该目录是否有重复文件
+        UserFile userFile = fileNameExist(userId, dto.getParentId(), dto.getFileName());
+        if (userFile != null) {
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "该目录下存在同名文件");
         }
-        boolean isNewFile = cache.equals("new");
-        if (isNewFile) {
-            //2. 上传分片文件
-            if (vo.getUploaded() == null || !vo.getUploaded()) {
-                UploadFileResult uploadFileResult = uploadExecute(dto, file);
-                vo.setUploaded(uploadFileResult.getUploaded());
-                vo.setProgress(uploadFileResult.getProgress());
-            }
-        }else {
-            vo.setUploaded(true);
-        }
-        //如果还没上传完整，直接返回不存数据库
-        if (!vo.getUploaded()) {
+        UploadFileVO vo = new UploadFileVO();
+        //判断秒传
+        FileObject fileObject = fileObjectMapper.selectOne(new LambdaQueryWrapper<FileObject>().eq(FileObject::getFileMd5, dto.getFileMd5()));
+        if (fileObject != null) {
+            vo.setIsUpload(true);
+
+            //引用+1
+            fileObjectMapper.incrementRefCount(fileObject.getFileMd5());
+
+            //存数据库
+            userFile = new UserFile();
+            userFile.setUserId(userId);
+            userFile.setParentId(dto.getParentId());
+            userFile.setObjectId(fileObject.getId());
+            userFile.setFileName(dto.getFileName());
+            userFile.setIsDirectory(0);
+            FileTypeEnum mediaCategory = FileTypeEnum.getFileTypeEnum(fileObject.getContentType());
+            userFile.setMediaCategory(mediaCategory);
+            userFile.setSort(0);
+            userFile.setDeleted(0L);
+            userFileMapper.insert(userFile);
             return vo;
         }
-        //只有最后一个分片上传才开始存数据
-        if(!dto.getChunkNumber().equals(dto.getCurrentChunkIndex())){
-            return vo;
-        }
-        //获取文件类型
-        FileBase fileBase;
-        if (isNewFile) {
-            String extendName = fileUtils.getFileExtendName(dto.getFileName());
-            String storePath = fileUtils.getOriginalFileStorePath(dto.getFileMd5(), extendName);
-            String contentType = fileUtils.getFileType(storePath, dto.getFileName());
-            FileTypeEnum fileTypeEnum = getFileTypeEnum(contentType);
-            //数据持久化
-            fileBase = uploadFileBasePersistence(dto, contentType, storePath);
-            //文件后期处理
-            postProduction(fileTypeEnum, dto, storePath);
+        String uploadId;
+        String objectPath = fileUtils.getOriginalFileStorePath(dto.getFileMd5(), dto.getFileName());
+        if (dto.getIsSlice()) {
+            //获取uploadId
+            uploadId = minioUploader.getUploadId(minioConfig.getBucketName(), objectPath);
         } else {
-            LambdaQueryWrapper<FileBase> wrapper = new LambdaQueryWrapper<FileBase>().eq(FileBase::getFileMd5, dto.getFileMd5());
-            fileBase = fileBaseMapper.selectOne(wrapper);
-            //引用次数增加
-            fileBaseMapper.incrementRefCount(dto.getFileMd5());
+            uploadId = UUID.randomUUID().toString();
         }
-        //数据持久化
-        UserFile userFile = uploadUserFilePersistence(fileBase, dto);
-        vo.setFileId(userFile.getFileId());
+        vo.setIsUpload(false);
+        vo.setUploadId(uploadId);
 
-        redisUtils.deletedKey(key);
+        //存缓存
+        String key = "gb_01:file-service:upload-file:" + userId + ":" + uploadId;
+        UploadFileCache cache = new UploadFileCache();
+        cache.setBucketName(minioConfig.getBucketName());
+        cache.setObjectPath(objectPath);
+        cache.setFileMd5(dto.getFileMd5());
+        cache.setFileName(dto.getFileName());
+        cache.setFileSize(dto.getFileSize());
+        cache.setParentId(dto.getParentId());
+        redisUtils.setObject(key, cache, 10L, TimeUnit.MINUTES);
 
         return vo;
     }
 
-    private String uploadInit(UploadFileDTO dto, String key){
-        String cache = null;
-        Long userId = UserContext.getUser();
-        //.1判断是否上传过
-        LambdaQueryWrapper<FileBase> wrapper = new LambdaQueryWrapper<FileBase>().eq(FileBase::getFileMd5, dto.getFileMd5());
-        FileBase fileBase = fileBaseMapper.selectOne(wrapper);
-
-        if (fileBase != null) {
-            //该文件被上传过， 引用+1
-            fileBaseMapper.incrementRefCount(dto.getFileMd5());
-            cache = "old";
-        }
-        //.2判断该用户当前文件夹内是否有同名文件
-        UserFile exist = fileNameExist(userId, dto.getParentFileId(), dto.getFileName());
-        if (exist != null) {
-            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "文件名重复");
-        }
-        cache = cache == null ? "new" : cache;
-        redisUtils.set(key, cache);
-        return cache;
-    }
-
-
-    private UploadFileResult uploadExecute(UploadFileDTO dto, MultipartFile file) {
-        //准备上传文件参数
-        UploadFile uploadFile = new UploadFile();
-        uploadFile.setFileMd5(dto.getFileMd5());
-        uploadFile.setBucketName(minioConfig.getBucketName());
-        String extendName = fileUtils.getFileExtendName(dto.getFileName());
-        String uploadPath = fileUtils.getOriginalFileStorePath(dto.getFileMd5(), extendName);
-        uploadFile.setUploadPath(uploadPath);
-        uploadFile.setCurrentChunkIndex(dto.getCurrentChunkIndex());
-        uploadFile.setChunkNumber(dto.getChunkNumber());
-        uploadFile.setCurrentChunkSize(dto.getCurrentChunkSize());
-        uploadFile.setFileSize(dto.getFileSize());
-        uploadFile.setIsChunk(true);
-        try {
-            //上传分片文件
-            return uploader.uploadByChunkFile(uploadFile,file.getInputStream());
-        } catch (IOException e) {
-            log.error("分片文件上传失败", e);
-            throw new CommonException(ErrorCode.SERVICE_ERROR);
-        }
-    }
-
-    private FileBase uploadFileBasePersistence(UploadFileDTO dto, String contentType, String storePath) {
-        FileBase fileBase = new FileBase();
-        fileBase.setFileSize(dto.getFileSize());
-        fileBase.setContentType(contentType);
-        fileBase.setBucketName(minioConfig.getBucketName());
-        fileBase.setObjectPath(storePath);
-        fileBase.setFileMd5(dto.getFileMd5());
-        fileBase.setRefCount(1);
-
-        //保存到数据库
-        fileBaseMapper.insert(fileBase);
-        return fileBase;
-    }
-
-    private UserFile uploadUserFilePersistence(FileBase fileBase, UploadFileDTO dto) {
-        if (fileBase == null || fileBase.getId() == null) {
-            log.error("上传文件持久化阶段异常 ->");
-            throw new CommonException(ErrorCode.SERVICE_ERROR.getCode(), "服务器内部异常，上传失败");
-        }
-        UserFile userFile = new UserFile();
-
-        Long userId = UserContext.getUser();
-        String fileExtendName = fileUtils.getFileExtendName(dto.getFileName());
-        FileTypeEnum fileTypeEnum = getFileTypeEnum(fileBase.getContentType());
-
-        userFile.setUserId(userId);
-        userFile.setFileId(fileBase.getId());
-        userFile.setParentId(dto.getParentFileId());
-        userFile.setFileName(dto.getFileName());
-        userFile.setFileSuffix(fileExtendName);
-        userFile.setFileSize(dto.getFileSize());
-        userFile.setFileMd5(dto.getFileMd5());
-        userFile.setContentType(fileBase.getContentType());
-        userFile.setFileType(fileTypeEnum);
-        userFile.setDeleted(0L);
-        //保存到数据库
-        userFileMapper.insert(userFile);
-
-        return userFile;
-    }
-
-    private void postProduction(FileTypeEnum fileTypeEnum, UploadFileDTO dto, String storePath) {
-        try{
-            //图片制作缩略图
-            if (fileTypeEnum == IMAGE) {
-                //获取该文件输入流
-                DownloadFile downloadFile = new DownloadFile(minioConfig.getBucketName(), storePath);
-                InputStream download = downloader.download(downloadFile);
-                //制作缩略图
-                byte[] thumbnailBytes = thumbnailUtils.createThumbnailBytes(download);
-                //构建缩略图存储路径
-                String thumbnailPath = fileUtils.getThumbnailFileStorePath(dto.getFileMd5(), fileUtils.getFileExtendName(dto.getFileName()));
-                //上传缩略图
-                UploadFile uploadFile = new UploadFile(thumbnailPath, (long) thumbnailBytes.length, minioConfig.getBucketName());
-                uploader.uploadBySingleFile(uploadFile, new ByteArrayInputStream(thumbnailBytes));
-            }
-            //TODO处理视频关键帧
-            if (fileTypeEnum == VIDEO) {
-                log.error("暂时无法提取视频关键帧");
-            }
-        }catch (CommonException e){
-            log.error("文件后期处理错误 -> ", e);
-        }
-    }
-
-
     @Override
-    public DownloadInfoVO getDownloadInfo(Long userFileId) {
+    public Map<Integer, String> directConnectionChunkUploadFile(String uploadId, List<Integer> chunkNumbers) {
         Long userId = UserContext.getUser();
-        UserFile userFile = userFileMapper.selectById(userFileId);
-        if (userFile == null || !userFile.getUserId().equals(userId)) {
-            throw new ForbiddenException(ErrorCode.AUTHORITY_ERROR.getCode(), "暂无权限下载该文件");
+        String key = "gb_01:file-service:upload-file:" + userId + ":" + uploadId;
+        UploadFileCache cache = redisUtils.getObject(key, UploadFileCache.class);
+        if (cache == null) {
+            log.error("在文件上传阶段未找到上传任务id -> key: {}", key);
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传任务未找到");
         }
-        if (userFile.getFileId() == null) {
-            log.error("数据库UserFile中id为:{}的字段不完整 -> ", userFileId);
-            throw new CommonException(ErrorCode.SERVICE_ERROR);
-        }
-        FileBase baseFile = fileBaseMapper.selectById(userFile.getFileId());
-        return new DownloadInfoVO(baseFile.getObjectPath(), userId);
-    }
+        return minioUploader.getChunkUploadUrls(cache.getBucketName(), cache.getObjectPath(), uploadId, chunkNumbers, 10, TimeUnit.MINUTES);
 
-
-    @Override
-    public void downloadFile(HttpServletRequest request, HttpServletResponse response, DownloadFileDTO dto) {
-        //获取文件下载地址
-        String downloadPath = FileDownloadContext.getStorePath();
-        Long userId = FileDownloadContext.getUserId();
-        if (downloadPath == null || !userId.equals(UserContext.getUser())) {
-            throw new ForbiddenException(ErrorCode.AUTHORITY_ERROR.getCode(), "请求资源无权限");
-        }
-        DownloadFile downloadFile;
-        if (dto.getChunked()) {
-            //分片下载
-            Long[] range = HttpUtils.getRequestRange(request, dto.getFileSize());
-            //设置下载相关请求头
-            HttpUtils.setRangeDownloadResponse(response, dto.getFileName(), dto.getFileSize(), dto.getContentType(), range[0], range[1]);
-            downloadFile = new DownloadFile(minioConfig.getBucketName(), downloadPath, range[0], range[1] - range[0] + 1);
-
-        } else {
-            //文件整体下载
-            downloadFile = new DownloadFile(minioConfig.getBucketName(), downloadPath);
-            HttpUtils.setDownloadResponse(response, dto.getFileName(), dto.getFileSize(), dto.getContentType());
-        }
-        //下载文件
-        try (InputStream is = downloader.download(downloadFile);) {
-            response.getOutputStream().write(is.readAllBytes());
-        } catch (IOException e) {
-            log.error("下载失败 -> ", e);
-            throw new RuntimeException("文件下载失败");
-        }
     }
 
     @Override
-    public void previewFile(HttpServletRequest request, HttpServletResponse response, PreviewFileDTO dto) {
-        Long userId = FileDownloadContext.getUserId();
-        String storePath = FileDownloadContext.getStorePath();
+    public String directConnectionWholeUploadFile(String uploadId) {
+        Long userId = UserContext.getUser();
+        String key = "gb_01:file-service:upload-file:" + userId + ":" + uploadId;
 
-        if (storePath == null || !userId.equals(UserContext.getUser())) {
-            throw new ForbiddenException(ErrorCode.AUTHORITY_ERROR.getCode(), "请求资源无权限");
+        UploadFileCache cache = redisUtils.getObject(key, UploadFileCache.class);
+        if (cache == null) {
+            log.error("在文件上传阶段未找到上传任务id -> key: {}", key);
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传任务未找到");
         }
-        //判断是否分流
-        DownloadFile downloadFile = null;
-        if (dto.getChunkStreamed()) {
-            Long[] range = HttpUtils.getRequestRange(request, dto.getFileSize());
-            //计算结束位置
-            HttpUtils.setRangePreviewResponse(response, range[0], range[1], dto.getFileSize(), dto.getContentType());
-            downloadFile = new DownloadFile(minioConfig.getBucketName(), storePath, range[0], range[1] - range[0] + 1, dto.getChunkStreamed());
-        } else {
-            HttpUtils.setPreviewResponse(response, dto.getFileSize(), dto.getContentType());
-            downloadFile = new DownloadFile(minioConfig.getBucketName(), storePath);
-        }
-
-        //下载文件
-        try (InputStream is = downloader.download(downloadFile)) {
-            byte[] buff = new byte[1024 * 1024 * 5];
-            int len;
-            while ((len = is.read(buff)) != -1) {
-                response.getOutputStream().write(buff, 0, len);
-            }
-            log.debug("加载大小：{}", buff.length);
-        } catch (Exception e) {
-            if (e.getMessage().contains("Broken pipe")) {
-                log.debug("链接断开");
-            } else {
-                log.error("文件预览失败 -> ", e);
-                throw new CommonException(ErrorCode.SERVICE_ERROR);
-            }
-        }
+        //获取上传url
+        return minioUploader.getWholeUploadUrl(cache.getBucketName(), cache.getObjectPath(), 10, TimeUnit.MINUTES);
     }
 
     @Override
-    public PageResult<PreviewImagesVO> pagePreviewImages(PageParams params) {
-        //获取登录用户
+    public String directionConnectionPreview(PreviewFileDTO dto) {
         Long userId = UserContext.getUser();
-        //条件分页查询
+        LambdaQueryWrapper<UserFile> previewWrapper = new LambdaQueryWrapper<UserFile>().eq(UserFile::getId, dto.getUserFileId()).eq(UserFile::getUserId, userId)
+                .eq(UserFile::getDeleted, 0);
+        UserFile userFile = userFileMapper.selectOne(previewWrapper);
+        if (userFile == null) {
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "数据不存在");
+        }
+        FileObject fileObject = fileObjectMapper.selectById(userFile.getObjectId());
+        if (fileObject == null) {
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "数据不存在");
+        }
+
+        return minioPreviewer.getPreviewPreSignedUrl(fileObject.getBucketName(), fileObject.getObjectPath(), fileObject.getContentType(), 10, TimeUnit.MINUTES);
+
+
+    }
+
+    @Override
+    public PageResult<PreviewImagesVO> previewThumbnailsPage(PageParams params) {
+        Long userId = UserContext.getUser();
         LambdaQueryWrapper<UserFile> pageWrapper = new LambdaQueryWrapper<UserFile>()
                 .eq(UserFile::getUserId, userId)
-                .eq(UserFile::getFileType, IMAGE)
-                .eq(UserFile::getDeleted, 0);
-
+                .eq(UserFile::getDeleted, 0)
+                .eq(UserFile::getMediaCategory, FileTypeEnum.IMAGE)
+                .orderByDesc(UserFile::getCreateTime);
         Page<UserFile> page = userFileMapper.selectPage(params.toPage(), pageWrapper);
-        //获取分页数据
         List<UserFile> records = page.getRecords();
-        if (records.isEmpty()) {
+        //判空
+        if(records == null || records.isEmpty()){
             return PageResult.empty();
         }
-        //收集文件id
-        List<Long> fileIds = new ArrayList<>();
-        for (UserFile record : records) {
-            fileIds.add(record.getFileId());
-        }
-        //根据文件id查询文件基本信息
-        LambdaQueryWrapper<FileBase> listWrapper = new LambdaQueryWrapper<FileBase>().in(FileBase::getId, fileIds);
-        Map<Long, FileBase> fileBaseMap = fileBaseMapper.selectList(listWrapper)
-                .stream()
-                .collect(Collectors.toMap(FileBase::getId, fileBase -> fileBase));
-        //返回结果集合
+        //收集fileIds
+        List<Long> fileIds = records.stream().map(UserFile::getObjectId).toList();
+        //查所有文件物理信息， 映射 fileId -> fileObject
+        Map<Long, FileObject> fileObjectMap = fileObjectMapper.selectByIds(fileIds).stream().collect(Collectors.toMap(FileObject::getId, fileObject -> fileObject));
+        //结果集
         List<PreviewImagesVO> res = new ArrayList<>();
+        //构建每条数据
         for (UserFile record : records) {
             PreviewImagesVO vo = new PreviewImagesVO();
-            //bean拷贝
-            BeanUtils.copyProperties(record, vo);
-            //组装剩余属性
-            int year = record.getCreateTime().getYear();
-            int month = record.getCreateTime().getMonthValue();
-            int day = record.getCreateTime().getDayOfMonth();
-            FileBase fileBase = fileBaseMap.get(record.getFileId());
-            String extendName = fileUtils.getFileExtendName(record.getFileName());
-            //获取临时签名url
-            String[] urls = getTempSignedUrl(fileBase.getFileMd5(), extendName, minioConfig.getTempSignedUrlExpireMinute());
-            vo.setThumbUrl(urls[1]);
-            vo.setOriginalUrl(urls[0]);
-            vo.setYear(year);
-            vo.setMonth(month);
-            vo.setDay(day);
+            Long fileId = record.getObjectId();
+            FileObject fileObject = fileObjectMap.get(fileId);
+            //获取缩略图签名
+            String thumbnailUrl = minioPreviewer.getPreviewPreSignedUrl(minioConfig.getBucketName(), fileObject.getObjectPath(), fileObject.getContentType(), 10, TimeUnit.MINUTES);
+            vo.setFileId(fileId);
+            vo.setFileName(record.getFileName());
+            vo.setFileSize(fileObject.getFileSize());
+            vo.setThumbUrl(thumbnailUrl);
+            vo.setCreateTime(record.getCreateTime());
             res.add(vo);
         }
+
         return new PageResult<>(page.getTotal(), page.getSize(), page.getCurrent(), res);
     }
+
+    @Override
+    public void saveUploadFile(String uploadId) {
+        Long userId = UserContext.getUser();
+        String key = "gb_01:file-service:upload-file:" + userId + ":" + uploadId;
+        UploadFileCache cache = redisUtils.getDelObject(key, UploadFileCache.class);
+
+        if (cache == null) {
+            log.error("在合并文件阶段未找到上传任务id -> key: {}", key);
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传任务未找到");
+        }
+
+        //写物理文件数据库
+        String contentType = fileUtils.getContentTypeByFileBinary(cache.getObjectPath(), cache.getFileName());
+        String fielETag = minioUtils.getFielETag(cache.getBucketName(), cache.getObjectPath());
+        FileObject fileObject = new FileObject();
+        fileObject.setBucketName(cache.getBucketName());
+        fileObject.setObjectPath(cache.getObjectPath());
+        fileObject.setFileMd5(cache.getFileMd5());
+        fileObject.setETag(fielETag);
+        fileObject.setFileSize(cache.getFileSize());
+        fileObject.setContentType(contentType);
+        fileObject.setFileSuffix(".test");
+        fileObject.setRefCount(1);
+        fileObject.setUploadUserId(userId);
+        fileObject.setIsDeleted(0L);
+        fileObjectMapper.insert(fileObject);
+
+        //写逻辑文件数据库
+        FileTypeEnum mediaCategory = FileTypeEnum.getFileTypeEnum(contentType);
+        UserFile userFile = new UserFile();
+        userFile.setUserId(userId);
+        userFile.setParentId(cache.getParentId());
+        userFile.setObjectId(fileObject.getId());
+        userFile.setFileName(cache.getFileName());
+        userFile.setFileSize(cache.getFileSize());
+        userFile.setIsDirectory(0);
+        userFile.setMediaCategory(mediaCategory);
+        userFile.setSort(0);
+        userFile.setDeleted(0L);
+        userFileMapper.insert(userFile);
+    }
+
+    @Override
+    public void uploadChunkFileMerge(String uploadId, Map<Integer, String> parts) {
+        Long userId = UserContext.getUser();
+        String key = "gb_01:file-service:upload-file:" + userId + ":" + uploadId;
+        UploadFileCache cache = redisUtils.getDelObject(key, UploadFileCache.class);
+
+        if (cache == null) {
+            log.error("在合并文件阶段未找到上传任务id -> key: {}", key);
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传任务未找到");
+        }
+        //合并分片，获取eTag
+        String eTag = minioUploader.chunkFileMerge(cache.getBucketName(), cache.getObjectPath(), uploadId, parts);
+
+        //TODO 删除数据库中分页进度
+
+
+        //写物理文件数据库
+        String contentType = fileUtils.getContentTypeByFileBinary(cache.getObjectPath(), cache.getFileName());
+
+        FileObject fileObject = new FileObject();
+        fileObject.setBucketName(cache.getBucketName());
+        fileObject.setObjectPath(cache.getObjectPath());
+        fileObject.setFileMd5(cache.getFileMd5());
+        fileObject.setETag(eTag);
+        fileObject.setFileSize(cache.getFileSize());
+        fileObject.setContentType(contentType);
+        fileObject.setFileSuffix("");
+        fileObject.setRefCount(1);
+        fileObject.setUploadUserId(userId);
+        fileObject.setIsDeleted(0L);
+        fileObjectMapper.insert(fileObject);
+
+        //写逻辑文件数据库
+        FileTypeEnum mediaCategory = FileTypeEnum.getFileTypeEnum(contentType);
+        UserFile userFile = new UserFile();
+        userFile.setUserId(userId);
+        userFile.setParentId(cache.getParentId());
+        userFile.setObjectId(fileObject.getId());
+        userFile.setFileName(cache.getFileName());
+        userFile.setFileSize(cache.getFileSize());
+        userFile.setIsDirectory(0);
+        userFile.setMediaCategory(mediaCategory);
+        userFile.setSort(0);
+        userFile.setDeleted(0L);
+        userFileMapper.insert(userFile);
+    }
+
 
     /**
      * 判断当前目录是否存在相同文件名文件
@@ -386,7 +325,6 @@ public class FileTransferServiceImpl implements IFileTransferService {
                 .eq(UserFile::getParentId, parentId)
                 .eq(UserFile::getFileName, fileName)
                 .eq(UserFile::getDeleted, 0);
-
         return userFileMapper.selectOne(wrapper);
     }
 

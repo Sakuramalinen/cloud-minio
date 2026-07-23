@@ -7,5 +7,6 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 @Data
 public class PageFilesQuery extends PageParams {
-    private Long id = 0L;
+
+    private Long parentId;
 }

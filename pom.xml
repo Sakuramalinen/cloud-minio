@@ -33,7 +33,7 @@
         <mybatis-plus-spring-boot3-starter.version>3.5.14</mybatis-plus-spring-boot3-starter.version>
         <mybatis-plus-jsqlparser.version>3.5.14</mybatis-plus-jsqlparser.version>
         <swagger.version>4.6.0.2</swagger.version>
-        <minio.version>8.6.0</minio.version>
+        <minio.version>9.0.3</minio.version>
         <thumbnailator.version>0.4.21</thumbnailator.version>
         <jjwt.version>0.12.6</jjwt.version>
         <redisson-spring-boot-starter.verion>3.52.0</redisson-spring-boot-starter.verion>
@@ -116,7 +116,7 @@
                 <artifactId>redisson-spring-boot-starter</artifactId>
                 <version>${redisson-spring-boot-starter.verion}</version>
             </dependency>
-
+<!--            文件类型处理-->
             <dependency>
                 <groupId>org.apache.tika</groupId>
                 <artifactId>tika-core</artifactId>

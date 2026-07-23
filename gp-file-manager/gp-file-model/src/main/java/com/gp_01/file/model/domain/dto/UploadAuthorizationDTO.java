@@ -6,24 +6,26 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
-public class DownloadFileDTO {
-    @SchemaProperty(name = "id")
-    private Long Id;
+public class UploadAuthorizationDTO {
 
     @NotNull
-    @SchemaProperty(name = "是否分片")
-    private Boolean chunked;
+    @SchemaProperty(name = "父级目录Id")
+    private Long parentId;
 
     @NotBlank
     @SchemaProperty(name = "文件名")
     private String fileName;
 
+    @NotBlank
+    @SchemaProperty(name = "文件md5值")
+    private String fileMd5;
+
     @NotNull
     @SchemaProperty(name = "文件大小")
     private Long fileSize;
 
-    @NotBlank
-    @SchemaProperty(name = "文件MIME类型")
-    private String contentType;
+    @NotNull
+    @SchemaProperty(name = "是否分片")
+    private Boolean isSlice;
 
 }

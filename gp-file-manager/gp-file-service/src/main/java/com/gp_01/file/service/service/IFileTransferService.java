@@ -2,28 +2,37 @@ package com.gp_01.file.service.service;
 
 import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
-import com.gp_01.file.model.domain.dto.DownloadFileDTO;
 import com.gp_01.file.model.domain.dto.PreviewFileDTO;
-import com.gp_01.file.model.domain.dto.UploadFileDTO;
-import com.gp_01.file.model.domain.vo.DownloadInfoVO;
+import com.gp_01.file.model.domain.dto.UploadAuthorizationDTO;
 import com.gp_01.file.model.domain.vo.PreviewImagesVO;
-import com.gp_01.file.model.domain.vo.UploadVO;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import com.gp_01.file.model.domain.vo.UploadFileVO;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import java.util.Map;
 
 public interface IFileTransferService {
-    UploadVO uploadFile(@NotNull MultipartFile file, @Valid UploadFileDTO uploadFileDTO);
+//    UploadFileVO uploadFile(@NotNull MultipartFile file, @Valid UploadFileDTO uploadFileDTO);
 
+//    void previewFile(HttpServletRequest request, HttpServletResponse response, @Valid PreviewFileDTO dto);
 
-    void downloadFile(HttpServletRequest request, HttpServletResponse response, @Valid DownloadFileDTO dto);
+//    PageResult<PreviewImagesVO> pagePreviewImages(@Valid PageParams params);
 
-    DownloadInfoVO getDownloadInfo(Long id);
+    String directionConnectionDownload(Long id);
 
-    void previewFile(HttpServletRequest request, HttpServletResponse response, @Valid PreviewFileDTO dto);
+    UploadFileVO uploadAuthorize(UploadAuthorizationDTO dto);
 
-    PageResult<PreviewImagesVO> pagePreviewImages(@Valid PageParams params);
+    Map<Integer, String> directConnectionChunkUploadFile(String uploadId, List<Integer> chunkNumbers);
 
+    void uploadChunkFileMerge(@NotBlank String uploadId, @NotNull Map<Integer,String> parts);
+
+    String directConnectionWholeUploadFile(String uploadId);
+
+    String directionConnectionPreview(@Valid PreviewFileDTO dto);
+
+    PageResult<PreviewImagesVO> previewThumbnailsPage(PageParams params);
+
+    void saveUploadFile( String uploadId);
 }

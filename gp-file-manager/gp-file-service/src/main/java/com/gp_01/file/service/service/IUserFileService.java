@@ -3,15 +3,11 @@ package com.gp_01.file.service.service;
 import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.file.model.domain.dto.*;
-import com.gp_01.file.model.domain.po.UserFile;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.gp_01.file.model.domain.po.UserFile;
 import com.gp_01.file.model.domain.query.PageFilesQuery;
 import com.gp_01.file.model.domain.vo.*;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.web.multipart.MultipartFile;
 
-import javax.crypto.Mac;
 import java.util.List;
 
 /**
@@ -40,7 +36,7 @@ public interface IUserFileService extends IService<UserFile> {
      * 查看回收站
      * @return
      */
-    List<ListRecycleBinVO> listRecycleBin();
+    PageResult<ListRecycleBinVO> recyclePage(PageParams params);
 
     /**
      * 从回收站恢复文件
@@ -52,7 +48,7 @@ public interface IUserFileService extends IService<UserFile> {
 
     void moveFile(Long fileId, Long targetId);
 
-    List<UserFile> listDirByParentId(Long id);
+    List<UserFile> listDirByParentId(Long parentId);
 
     /**
      * 批量删除回收站文件

@@ -11,16 +11,11 @@ import com.gp_01.file.model.domain.vo.*;
 import com.gp_01.file.service.service.IUserFileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -78,11 +73,10 @@ public class UserFileController {
     }
 
 
-    @GetMapping("recycle/list")
+    @GetMapping("recycle/page")
     @Operation(summary = "查看回收站")
-    public Result<List<ListRecycleBinVO>> listRecycle() {
-        List<ListRecycleBinVO> data = userFileService.listRecycleBin();
-        return Result.success(data);
+    public PageResult<ListRecycleBinVO> RecyclePage(PageParams params) {
+        return userFileService.recyclePage(params);
     }
 
     @PutMapping("restore")
@@ -106,10 +100,10 @@ public class UserFileController {
         return Result.success();
     }
 
-    @GetMapping("dir/list/{id}")
+    @GetMapping("dir/list/{parentId}")
     @Operation(summary = "查询文件夹目录")
-    public Result<List<UserFile>> listDirByParentId(@PathVariable @NotNull Long id) {
-        List<UserFile> res = userFileService.listDirByParentId(id);
+    public Result<List<UserFile>> listDirByParentId(@PathVariable @NotNull Long parentId) {
+        List<UserFile> res = userFileService.listDirByParentId(parentId);
         return Result.success(res);
     }
     //TODO 文件分享功能
