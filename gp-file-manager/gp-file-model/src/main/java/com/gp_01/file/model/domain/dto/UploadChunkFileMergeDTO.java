@@ -9,11 +9,8 @@ import java.util.Map;
 @Data
 public class UploadChunkFileMergeDTO {
 
-    @NotBlank
-    private String uploadId;
-
     @NotNull
-    private Map<Integer, String> parts;
+    private Long taskId;
 }
 
 

@@ -1,5 +1,6 @@
 package com.gp_01.common.autoconfig.mvc;
 
+import ch.qos.logback.classic.pattern.MessageConverter;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
@@ -30,4 +31,6 @@ public class JsonConfig {
 
         };
     }
+
+
 }

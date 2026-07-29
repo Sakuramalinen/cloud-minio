@@ -2,6 +2,7 @@ package com.gp_01.file.service.operation.upload.product;
 
 
 import com.gp_01.common.enums.ErrorCode;
+import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.common.exception.CommonException;
 import com.gp_01.file.service.operation.upload.Uploader;
 import com.gp_01.file.service.operation.upload.domain.DirectConnectionUploadFileParam;
@@ -9,15 +10,18 @@ import com.gp_01.file.service.operation.upload.domain.DirectConnectionUploadFile
 import io.minio.*;
 import io.minio.errors.*;
 
+import io.minio.messages.ListPartsResult;
 import io.minio.messages.Part;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -38,7 +42,6 @@ public class MinioUploader extends Uploader {
      * 分片上传第一步，需要获取上传id
      */
     public String getUploadId(String bucketName, String objectPath) {
-
         CreateMultipartUploadArgs args = CreateMultipartUploadArgs.builder()
                 .bucket(bucketName)
                 .object(objectPath)
@@ -73,9 +76,9 @@ public class MinioUploader extends Uploader {
     /**
      * 获取所有切片上传url
      */
-    public Map<Integer, String> getChunkUploadUrls(String bucketName, String objectPath, String uploadId, List<Integer> chunkNumbers,  Integer expiry, TimeUnit timeUnit) {
+    public Map<Integer, String> getChunkUploadUrls(String bucketName, String objectPath, String uploadId, List<Integer> chunkNumbers, Integer expiry, TimeUnit timeUnit) {
         Map<Integer, String> urls = new HashMap<>();
-        for(Integer chunkNumber : chunkNumbers){
+        for (Integer chunkNumber : chunkNumbers) {
             //构建上传url
             Map<String, String> map = new HashMap<>();
             map.put("uploadId", uploadId);
@@ -101,22 +104,46 @@ public class MinioUploader extends Uploader {
     /**
      * 切片合并
      */
-    public String chunkFileMerge(String bucketName, String objectPath, String uploadId, Map<Integer, String> partMap) {
-
-        Part[] parts = new Part[partMap.size()];
-        int index = 0;
-        for (Map.Entry<Integer, String> entry : partMap.entrySet()) {
-            parts[index++] = new Part(entry.getKey(), entry.getValue());
+    public String chunkFileMerge(String bucketName, String objectPath, String uploadId) {
+        List<Part> parts = new ArrayList<>();
+        try {
+            Integer partNumberMarker = null;
+            do {
+            //获取所有分片
+            ListPartsArgs partsArgs = ListPartsArgs.builder()
+                    .bucket(bucketName)
+                    .maxParts(100)
+                    .uploadId(uploadId)
+                    .partNumberMarker(partNumberMarker)
+                    .build();
+            Field objectName = ObjectArgs.class.getDeclaredField("objectName");
+            objectName.setAccessible(true);
+            objectName.set(partsArgs, objectPath);
+            ListPartsResult result = minioAsyncClient.listParts(partsArgs).get().result();
+            parts.addAll(result.parts());
+            partNumberMarker = result.nextPartNumberMarker();
+            } while (partNumberMarker != null && partNumberMarker != 0);
+        } catch (Exception e) {
+            log.error("获取分片失败, path: {}", objectPath, e);
+            throw new CommonException(ErrorCode.BUSINESS_ERROR.getCode(), "获取分片失败");
         }
 
-        CompleteMultipartUploadArgs args = CompleteMultipartUploadArgs.builder()
-                .bucket(bucketName)
-                .uploadId(uploadId)
-                .object(objectPath)
-                .parts(parts)
-                .build();
+        if (parts.isEmpty()) {
+            log.error("获取上传id:{}, 文件路径为:{}切片失败", uploadId, objectPath);
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "获取该文件切片失败");
+        }
         try {
-            ObjectWriteResponse objectWriteResponse = minioAsyncClient.completeMultipartUpload(args).get();
+            Part[] p = new Part[parts.size()];
+            for (int i = 0; i < parts.size(); i++) {
+                p[i] = parts.get(i);
+            }
+            CompleteMultipartUploadArgs args = CompleteMultipartUploadArgs.builder()
+                    .bucket(bucketName)
+                    .uploadId(uploadId)
+                    .object(objectPath)
+                    .parts(p)
+                    .build();
+            ObjectWriteResponse objectWriteResponse = minioAsyncClient.completeMultipartUpload(args).get(10L, TimeUnit.SECONDS);
             return objectWriteResponse.etag();
         } catch (Exception e) {
             log.error("合并分片失败, path: {}", objectPath, e);

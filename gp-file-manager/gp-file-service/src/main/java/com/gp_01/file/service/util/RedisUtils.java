@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.redisson.api.RedissonClient;
 import org.springframework.cloud.bootstrap.encrypt.KeyProperties;
 import org.springframework.dao.DataAccessException;
@@ -15,13 +14,12 @@ import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.stereotype.Component;
 
-import java.nio.charset.StandardCharsets;
-import java.sql.Time;
-import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Component
@@ -109,12 +107,13 @@ public class RedisUtils {
 
     /**
      * 获取并删除对象
+     *
      * @param key
      * @param tClass
-     * @return
      * @param <T>
+     * @return
      */
-    public <T> T getDelObject(String key, Class<T> tClass){
+    public <T> T getDelObject(String key, Class<T> tClass) {
         String jsonStr = stringRedisTemplate.opsForValue().getAndDelete(key);
         try {
             return objectMapper.readValue(jsonStr, tClass);
@@ -133,8 +132,32 @@ public class RedisUtils {
     /*
      * 写hash
      */
-    public void setHashAll(String key, Map<String, String> map){
+    public void setHashAll(String key, Map<String, String> map, Long expiry, TimeUnit unit) {
         stringRedisTemplate.opsForHash().putAll(key, map);
+        stringRedisTemplate.expire(key,expiry, unit);
+    }
+
+    /**
+     * 获取全部hash
+     */
+    public Map<Object, Object> getHashAll(String key) {
+        return stringRedisTemplate.opsForHash().entries(key);
+    }
+
+    public List<Map<String, String>> getHashAllBatch(List<String> keys) {
+        List<Object> resList = stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            for (String key : keys) {
+                byte[] keyBytes = key.getBytes();
+                connection.hashCommands().hGetAll(keyBytes);
+            }
+            return null;
+        });
+        List<Map<String, String>> finalList = new ArrayList<>(resList.size());
+        for (Object res : resList) {
+            Map<String, String> finalMap = (Map<String, String>)res;
+            finalList.add(finalMap);
+        }
+        return finalList;
     }
 
     /**
@@ -154,11 +177,11 @@ public class RedisUtils {
         Map<String, String> rawMap = (Map<String, String>) resList.get(0);
         Map<String, String> resultMap = new HashMap<>();
 
-        if(rawMap != null && !rawMap.isEmpty()){
+        if (rawMap != null && !rawMap.isEmpty()) {
             for (Map.Entry<String, String> entry : rawMap.entrySet()) {
                 String field = entry.getKey();
                 String value = entry.getValue();
-                resultMap.put(field,value);
+                resultMap.put(field, value);
             }
         }
 

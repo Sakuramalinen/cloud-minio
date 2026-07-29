@@ -1,7 +1,9 @@
 package com.gp_01.file.model.domain.dto;
 
 import lombok.Data;
+import lombok.ToString;
 
+@ToString
 @Data
 public class DownloadAuth {
 

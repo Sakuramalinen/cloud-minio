@@ -37,28 +37,28 @@ public class FileTransferController {
     }
     @PostMapping("upload/direction-connect/whole-file")
     @Operation(summary = "直连完整文件上传", description = "响应给前端预签名url，直连OSS进行文件完整上传，适用于小文件")
-    public Result<String> directConnectionWholeUploadFile(@RequestBody @NotBlank String uploadId){
-        String url = fileTransferService.directConnectionWholeUploadFile(uploadId);
+    public Result<String> directConnectionWholeUploadFile(@RequestBody @NotNull Long taskId){
+        String url = fileTransferService.directConnectionWholeUploadFile(taskId);
         return Result.success(url);
     }
 
     @PostMapping("upload/direction-connect/chunk-file")
     @Operation(summary = "直连分片文件上传", description = "直连OSS进行文件分片上传，适用于大文件，支持断点续传")
     public Result<Map<Integer, String>> directConnectionChunkUploadFile(@RequestBody @Valid UploadChunkFileDTO dto){
-        Map<Integer, String> urls = fileTransferService.directConnectionChunkUploadFile(dto.getUploadId(), dto.getChunkNumbers());
+        Map<Integer, String> urls = fileTransferService.directConnectionChunkUploadFile(dto.getTaskId(), dto.getChunkNumbers());
         return Result.success(urls);
     }
 
     @PostMapping("upload/merge")
     @Operation(summary = "分片文件合并", description = "分片文件上传完成，调用合并文件")
-    public Result<Void> uploadChunkFileMerge(@RequestBody @Valid UploadChunkFileMergeDTO dto){
-        fileTransferService.uploadChunkFileMerge(dto.getUploadId(), dto.getParts());
+    public Result<Void> uploadChunkFileMerge(@RequestBody @NotNull Long taskId){
+        fileTransferService.uploadChunkFileMerge(taskId);
         return Result.success();
     }
     @PostMapping("upload/save")
     @Operation(summary = "保存上传文件", description = "直接完整上传后调用")
-    public Result<Void> saveUploadFile(@RequestBody @NotBlank String uploadId){
-        fileTransferService.saveUploadFile(uploadId);
+    public Result<Void> saveUploadFile(@RequestBody @NotNull Long taskId){
+        fileTransferService.saveUploadFile(taskId);
         return Result.success();
     }
 

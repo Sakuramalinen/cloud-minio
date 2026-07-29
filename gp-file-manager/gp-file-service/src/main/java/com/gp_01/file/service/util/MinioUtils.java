@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
@@ -97,42 +98,6 @@ public class MinioUtils {
     }
 
     /**
-     * 范围下载
-     *
-     * @param storePath 文件存储路径
-     * @param offset    下载起始地址
-     * @param len       下载长度
-     * @return 分片输入流
-     */
-    public InputStream downloadFile(String storePath, Long offset, Long len) {
-        try {
-            return minioClient.getObject(GetObjectArgs.builder()
-                    .bucket(minioConfig.getBucketName())
-                    .object(storePath)
-                    .offset(offset)
-                    .length(len)
-                    .build());
-        } catch (Exception e) {
-            log.error("下载文件失败：下载路径：{} -> ", storePath, e);
-            throw new RuntimeException(e);
-        }
-    }
-
-    public void uploadFile(InputStream inputStream, Long fileSize, String storePath) {
-        try {
-            PutObjectArgs args = PutObjectArgs.builder()
-                    .bucket(minioConfig.getBucketName())
-                    .stream(inputStream, fileSize, -1L)
-                    .object(storePath)
-                    .build();
-            minioClient.putObject(args);
-        } catch (Exception e) {
-            log.error("上传文件失败：存储路径：{} -> ", storePath, e);
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
      * 获取文件ETAG
      * @param bucketName
      * @param objectPath
@@ -189,6 +154,8 @@ public class MinioUtils {
             }
         });
     }
+
+
 
 
 }

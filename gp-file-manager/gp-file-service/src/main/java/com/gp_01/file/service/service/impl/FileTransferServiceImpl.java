@@ -8,15 +8,20 @@ import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.enums.FileTypeEnum;
 import com.gp_01.common.exception.BadRequestException;
+import com.gp_01.common.exception.CommonException;
 import com.gp_01.file.model.domain.cache.redis.UploadFileCache;
 import com.gp_01.file.model.domain.dto.PreviewFileDTO;
 import com.gp_01.file.model.domain.dto.UploadAuthorizationDTO;
 import com.gp_01.file.model.domain.po.FileObject;
+import com.gp_01.file.model.domain.po.UploadTaskRecord;
 import com.gp_01.file.model.domain.po.UserFile;
 import com.gp_01.file.model.domain.vo.PreviewImagesVO;
 import com.gp_01.file.model.domain.vo.UploadFileVO;
+import com.gp_01.file.service.config.FileServiceProperties;
 import com.gp_01.file.service.config.MinioConfig;
+import com.gp_01.file.service.constants.RedisKeyFormatter;
 import com.gp_01.file.service.mapper.FileObjectMapper;
+import com.gp_01.file.service.mapper.UploadTaskRecordMapper;
 import com.gp_01.file.service.mapper.UserFileMapper;
 import com.gp_01.file.service.operation.download.Downloader;
 import com.gp_01.file.service.operation.download.domain.DownloadFile;
@@ -27,7 +32,10 @@ import com.gp_01.file.service.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.unit.DataSize;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -36,6 +44,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class FileTransferServiceImpl implements IFileTransferService {
+
+    private final FileServiceProperties fileServiceProperties;
 
     private final Downloader downloader;
 
@@ -50,6 +60,8 @@ public class FileTransferServiceImpl implements IFileTransferService {
     private final UserFileMapper userFileMapper;
 
     private final FileObjectMapper fileObjectMapper;
+
+    private final UploadTaskRecordMapper uploadTaskRecordMapper;
 
     private final MinioConfig minioConfig;
 
@@ -86,84 +98,138 @@ public class FileTransferServiceImpl implements IFileTransferService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public UploadFileVO uploadAuthorize(UploadAuthorizationDTO dto) {
         Long userId = UserContext.getUser();
 
+        //判断目录是否存在
+        LambdaQueryWrapper<UserFile> parentIdExistWrapper = new LambdaQueryWrapper<UserFile>()
+                .eq(UserFile::getUserId, userId)
+                .eq(UserFile::getId, dto.getParentId())
+                .eq(UserFile::getDeleted, 0);
+        UserFile parentIdExist = userFileMapper.selectOne(parentIdExistWrapper);
+        if (parentIdExist == null) {
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "该目录不存在");
+        }
         //判断该目录是否有重复文件
         UserFile userFile = fileNameExist(userId, dto.getParentId(), dto.getFileName());
         if (userFile != null) {
             throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "该目录下存在同名文件");
         }
-        UploadFileVO vo = new UploadFileVO();
         //判断秒传
         FileObject fileObject = fileObjectMapper.selectOne(new LambdaQueryWrapper<FileObject>().eq(FileObject::getFileMd5, dto.getFileMd5()));
         if (fileObject != null) {
-            vo.setIsUpload(true);
-
             //引用+1
             fileObjectMapper.incrementRefCount(fileObject.getFileMd5());
 
-            //存数据库
-            userFile = new UserFile();
-            userFile.setUserId(userId);
-            userFile.setParentId(dto.getParentId());
-            userFile.setObjectId(fileObject.getId());
-            userFile.setFileName(dto.getFileName());
-            userFile.setIsDirectory(0);
             FileTypeEnum mediaCategory = FileTypeEnum.getFileTypeEnum(fileObject.getContentType());
-            userFile.setMediaCategory(mediaCategory);
-            userFile.setSort(0);
-            userFile.setDeleted(0L);
+            //存数据库
+            userFile = new UserFile()
+                    .setUserId(userId)
+                    .setParentId(dto.getParentId())
+                    .setObjectId(fileObject.getId())
+                    .setFileName(dto.getFileName())
+                    .setFileSize(dto.getFileSize())
+                    .setIsDirectory(0)
+                    .setMediaCategory(mediaCategory)
+                    .setSort(0)
+                    .setDeleted(0L);
             userFileMapper.insert(userFile);
-            return vo;
+            return new UploadFileVO()
+                    .setIsUpload(true);
+
         }
-        String uploadId;
-        String objectPath = fileUtils.getOriginalFileStorePath(dto.getFileMd5(), dto.getFileName());
-        if (dto.getIsSlice()) {
-            //获取uploadId
-            uploadId = minioUploader.getUploadId(minioConfig.getBucketName(), objectPath);
-        } else {
-            uploadId = UUID.randomUUID().toString();
+
+
+        //判断是否是以前暂停上传的任务
+        LambdaQueryWrapper<UploadTaskRecord> wrapper = new LambdaQueryWrapper<UploadTaskRecord>()
+                .eq(UploadTaskRecord::getFileMd5, dto.getFileMd5())
+                .eq(UploadTaskRecord::getParentId, dto.getParentId())
+                .eq(UploadTaskRecord::getUserId, userId);
+        UploadTaskRecord uploadTaskRecord = uploadTaskRecordMapper.selectOne(wrapper);
+        if (uploadTaskRecord == null) {
+            //判断是否需要分片
+            boolean isChunked = false;
+            long chunkSize = -1;
+            StringBuilder bitmap = new StringBuilder();
+            if (dto.getFileSize() >= fileServiceProperties.getChunkUploadThreshold().toBytes()) {
+                //计算分片大小
+                chunkSize = calculateChunkSize(dto.getFileSize());
+                if (chunkSize != -1) {
+                    isChunked = true;
+                    int totalChunks = (int) ((dto.getFileSize() + chunkSize - 1) / chunkSize);
+                    bitmap.append("0".repeat(Math.max(0, totalChunks)));
+                }
+            }
+
+            String uploadId;
+            String objectPath = fileUtils.getOriginalFileStorePath(dto.getFileMd5(), dto.getFileName());
+            if (isChunked) {
+                //获取uploadId
+                uploadId = minioUploader.getUploadId(minioConfig.getBucketName(), objectPath);
+            } else {
+                uploadId = UUID.randomUUID().toString();
+            }
+            LocalDateTime expiryTime = LocalDateTime.now().plusDays(7);
+            //生成上传任务对象
+            uploadTaskRecord = new UploadTaskRecord()
+                    .setParentId(dto.getParentId())
+                    .setFileMd5(dto.getFileMd5())
+                    .setFileName(dto.getFileName())
+                    .setUploadId(uploadId)
+                    .setUserId(userId)
+                    .setStatus(0)
+                    .setUploadType(isChunked ? 1 : 0)
+                    .setChunkSize(chunkSize)
+                    .setFileSize(dto.getFileSize())
+                    .setBucketName(minioConfig.getBucketName())
+                    .setObjectPath(objectPath)
+                    .setChunkBitmap(bitmap.toString())
+                    .setExpireTime(expiryTime);
+            uploadTaskRecordMapper.insert(uploadTaskRecord);
         }
-        vo.setIsUpload(false);
-        vo.setUploadId(uploadId);
 
         //存缓存
-        String key = "gb_01:file-service:upload-file:" + userId + ":" + uploadId;
-        UploadFileCache cache = new UploadFileCache();
-        cache.setBucketName(minioConfig.getBucketName());
-        cache.setObjectPath(objectPath);
-        cache.setFileMd5(dto.getFileMd5());
-        cache.setFileName(dto.getFileName());
-        cache.setFileSize(dto.getFileSize());
-        cache.setParentId(dto.getParentId());
+        String key = RedisKeyFormatter.fileUploadInfoKey(userId, uploadTaskRecord.getTaskId());
+        UploadFileCache cache = new UploadFileCache()
+                .setBucketName(uploadTaskRecord.getBucketName())
+                .setObjectPath(uploadTaskRecord.getObjectPath())
+                .setFileMd5(uploadTaskRecord.getFileMd5())
+                .setFileName(uploadTaskRecord.getFileName())
+                .setFileSize(uploadTaskRecord.getFileSize())
+                .setParentId(uploadTaskRecord.getParentId())
+                .setUploadId(uploadTaskRecord.getUploadId());
         redisUtils.setObject(key, cache, 10L, TimeUnit.MINUTES);
 
-        return vo;
+        return new UploadFileVO()
+                .setIsUpload(false)
+                .setTaskId(uploadTaskRecord.getTaskId())
+                .setChunkSize(uploadTaskRecord.getChunkSize())
+                .setIsChunked(uploadTaskRecord.getUploadType() == 1)
+                .setChunkBitmap(uploadTaskRecord.getChunkBitmap());
+
     }
 
+
     @Override
-    public Map<Integer, String> directConnectionChunkUploadFile(String uploadId, List<Integer> chunkNumbers) {
+    public Map<Integer, String> directConnectionChunkUploadFile(Long taskId, List<Integer> chunkNumbers) {
         Long userId = UserContext.getUser();
-        String key = "gb_01:file-service:upload-file:" + userId + ":" + uploadId;
+        String key = RedisKeyFormatter.fileUploadInfoKey(userId, taskId);
         UploadFileCache cache = redisUtils.getObject(key, UploadFileCache.class);
         if (cache == null) {
-            log.error("在文件上传阶段未找到上传任务id -> key: {}", key);
-            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传任务未找到");
+            throw new BadRequestException(ErrorCode.AUTHORITY_EXPIRATION_ERROR.getCode(), "上传key过期，请重新获取");
         }
-        return minioUploader.getChunkUploadUrls(cache.getBucketName(), cache.getObjectPath(), uploadId, chunkNumbers, 10, TimeUnit.MINUTES);
+        return minioUploader.getChunkUploadUrls(cache.getBucketName(), cache.getObjectPath(), cache.getUploadId(), chunkNumbers, 10, TimeUnit.MINUTES);
 
     }
 
     @Override
-    public String directConnectionWholeUploadFile(String uploadId) {
+    public String directConnectionWholeUploadFile(Long taskId) {
         Long userId = UserContext.getUser();
-        String key = "gb_01:file-service:upload-file:" + userId + ":" + uploadId;
-
+        String key = RedisKeyFormatter.fileUploadInfoKey(userId, taskId);
         UploadFileCache cache = redisUtils.getObject(key, UploadFileCache.class);
         if (cache == null) {
-            log.error("在文件上传阶段未找到上传任务id -> key: {}", key);
-            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传任务未找到");
+            throw new BadRequestException(ErrorCode.AUTHORITY_EXPIRATION_ERROR.getCode(), "上传key过期，请重新获取");
         }
         //获取上传url
         return minioUploader.getWholeUploadUrl(cache.getBucketName(), cache.getObjectPath(), 10, TimeUnit.MINUTES);
@@ -199,7 +265,7 @@ public class FileTransferServiceImpl implements IFileTransferService {
         Page<UserFile> page = userFileMapper.selectPage(params.toPage(), pageWrapper);
         List<UserFile> records = page.getRecords();
         //判空
-        if(records == null || records.isEmpty()){
+        if (records == null || records.isEmpty()) {
             return PageResult.empty();
         }
         //收集fileIds
@@ -227,91 +293,93 @@ public class FileTransferServiceImpl implements IFileTransferService {
     }
 
     @Override
-    public void saveUploadFile(String uploadId) {
+    @Transactional(rollbackFor = Exception.class)
+    public void saveUploadFile(Long taskId) {
         Long userId = UserContext.getUser();
-        String key = "gb_01:file-service:upload-file:" + userId + ":" + uploadId;
+        String key = RedisKeyFormatter.fileUploadInfoKey(userId, taskId);
         UploadFileCache cache = redisUtils.getDelObject(key, UploadFileCache.class);
 
+
         if (cache == null) {
-            log.error("在合并文件阶段未找到上传任务id -> key: {}", key);
-            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传任务未找到");
+            throw new BadRequestException(ErrorCode.AUTHORITY_EXPIRATION_ERROR.getCode(), "上传key过期，请重新获取");
         }
+
+        //删除数据库中上传任务
+        uploadTaskRecordMapper.deleteById(taskId);
 
         //写物理文件数据库
         String contentType = fileUtils.getContentTypeByFileBinary(cache.getObjectPath(), cache.getFileName());
         String fielETag = minioUtils.getFielETag(cache.getBucketName(), cache.getObjectPath());
-        FileObject fileObject = new FileObject();
-        fileObject.setBucketName(cache.getBucketName());
-        fileObject.setObjectPath(cache.getObjectPath());
-        fileObject.setFileMd5(cache.getFileMd5());
-        fileObject.setETag(fielETag);
-        fileObject.setFileSize(cache.getFileSize());
-        fileObject.setContentType(contentType);
-        fileObject.setFileSuffix(".test");
-        fileObject.setRefCount(1);
-        fileObject.setUploadUserId(userId);
-        fileObject.setIsDeleted(0L);
+        FileObject fileObject = new FileObject()
+                .setBucketName(cache.getBucketName())
+                .setObjectPath(cache.getObjectPath())
+                .setFileMd5(cache.getFileMd5())
+                .setETag(fielETag)
+                .setFileSize(cache.getFileSize())
+                .setContentType(contentType)
+                .setRefCount(1)
+                .setUploadUserId(userId)
+                .setIsDeleted(0L);
         fileObjectMapper.insert(fileObject);
 
         //写逻辑文件数据库
         FileTypeEnum mediaCategory = FileTypeEnum.getFileTypeEnum(contentType);
-        UserFile userFile = new UserFile();
-        userFile.setUserId(userId);
-        userFile.setParentId(cache.getParentId());
-        userFile.setObjectId(fileObject.getId());
-        userFile.setFileName(cache.getFileName());
-        userFile.setFileSize(cache.getFileSize());
-        userFile.setIsDirectory(0);
-        userFile.setMediaCategory(mediaCategory);
-        userFile.setSort(0);
-        userFile.setDeleted(0L);
+        UserFile userFile = new UserFile()
+                .setUserId(userId)
+                .setParentId(cache.getParentId())
+                .setObjectId(fileObject.getId())
+                .setFileName(cache.getFileName())
+                .setFileSize(cache.getFileSize())
+                .setIsDirectory(0)
+                .setMediaCategory(mediaCategory)
+                .setSort(0)
+                .setDeleted(0L);
         userFileMapper.insert(userFile);
     }
 
     @Override
-    public void uploadChunkFileMerge(String uploadId, Map<Integer, String> parts) {
+    @Transactional(rollbackFor = Exception.class)
+    public void uploadChunkFileMerge(Long taskId) {
         Long userId = UserContext.getUser();
-        String key = "gb_01:file-service:upload-file:" + userId + ":" + uploadId;
+        String key = RedisKeyFormatter.fileUploadInfoKey(userId, taskId);
         UploadFileCache cache = redisUtils.getDelObject(key, UploadFileCache.class);
 
         if (cache == null) {
-            log.error("在合并文件阶段未找到上传任务id -> key: {}", key);
-            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传任务未找到");
+            throw new BadRequestException(ErrorCode.AUTHORITY_EXPIRATION_ERROR.getCode(), "上传key过期，请重新获取");
         }
         //合并分片，获取eTag
-        String eTag = minioUploader.chunkFileMerge(cache.getBucketName(), cache.getObjectPath(), uploadId, parts);
+        String eTag = minioUploader.chunkFileMerge(cache.getBucketName(), cache.getObjectPath(), cache.getUploadId());
 
-        //TODO 删除数据库中分页进度
-
+        //删除数据库中上传任务
+        uploadTaskRecordMapper.deleteById(taskId);
 
         //写物理文件数据库
         String contentType = fileUtils.getContentTypeByFileBinary(cache.getObjectPath(), cache.getFileName());
 
-        FileObject fileObject = new FileObject();
-        fileObject.setBucketName(cache.getBucketName());
-        fileObject.setObjectPath(cache.getObjectPath());
-        fileObject.setFileMd5(cache.getFileMd5());
-        fileObject.setETag(eTag);
-        fileObject.setFileSize(cache.getFileSize());
-        fileObject.setContentType(contentType);
-        fileObject.setFileSuffix("");
-        fileObject.setRefCount(1);
-        fileObject.setUploadUserId(userId);
-        fileObject.setIsDeleted(0L);
+        FileObject fileObject = new FileObject()
+                .setBucketName(cache.getBucketName())
+                .setObjectPath(cache.getObjectPath())
+                .setFileMd5(cache.getFileMd5())
+                .setETag(eTag)
+                .setFileSize(cache.getFileSize())
+                .setContentType(contentType)
+                .setRefCount(1)
+                .setUploadUserId(userId)
+                .setIsDeleted(0L);
         fileObjectMapper.insert(fileObject);
 
         //写逻辑文件数据库
         FileTypeEnum mediaCategory = FileTypeEnum.getFileTypeEnum(contentType);
-        UserFile userFile = new UserFile();
-        userFile.setUserId(userId);
-        userFile.setParentId(cache.getParentId());
-        userFile.setObjectId(fileObject.getId());
-        userFile.setFileName(cache.getFileName());
-        userFile.setFileSize(cache.getFileSize());
-        userFile.setIsDirectory(0);
-        userFile.setMediaCategory(mediaCategory);
-        userFile.setSort(0);
-        userFile.setDeleted(0L);
+        UserFile userFile = new UserFile()
+                .setUserId(userId)
+                .setParentId(cache.getParentId())
+                .setObjectId(fileObject.getId())
+                .setFileName(cache.getFileName())
+                .setFileSize(cache.getFileSize())
+                .setIsDirectory(0)
+                .setMediaCategory(mediaCategory)
+                .setSort(0)
+                .setDeleted(0L);
         userFileMapper.insert(userFile);
     }
 
@@ -346,5 +414,26 @@ public class FileTransferServiceImpl implements IFileTransferService {
         res[1] = minioUtils.getTempSignedUrl(thumbnailPath, expireMinute);
 
         return res;
+    }
+
+    /**
+     * 计算该文件每个分片大小
+     *
+     * @param fileSize 文件总大小
+     * @return 每个分片大小 执行错误返回 -1
+     */
+    private long calculateChunkSize(Long fileSize) {
+        Map<DataSize, DataSize> chunkStrategyMap = fileServiceProperties.getChunkStrategyMap();
+        if (chunkStrategyMap == null || chunkStrategyMap.isEmpty()) {
+            log.error("gp:file-service:chunk-strategy-map配置读取失败");
+            return -1;
+        }
+        TreeMap<DataSize, DataSize> treeMap = new TreeMap<>(chunkStrategyMap);
+
+        Map.Entry<DataSize, DataSize> entry = treeMap.floorEntry(DataSize.ofBytes(fileSize));
+        if (entry == null) {
+            return -1;
+        }
+        return entry.getValue().toBytes();
     }
 }

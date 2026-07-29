@@ -167,6 +167,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
                 .eq(UserFile::getUserId, userId)
                 .eq(UserFile::getDeleted, 0)
                 .eq(UserFile::getParentId, query.getParentId())
+                .ne(UserFile::getId,0)
                 .orderByDesc(UserFile::getIsDirectory);
         if (query.getSortBy() != null) {
             userFileWrapper
@@ -304,6 +305,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
                 .eq(UserFile::getParentId, parentId)
                 .eq(UserFile::getDeleted, 0)
                 .eq(UserFile::getIsDirectory, 1)
+                .ne(UserFile::getId,0)
                 .list();
         if (list == null) {
             return List.of();

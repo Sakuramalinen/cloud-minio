@@ -14,25 +14,20 @@ import java.util.List;
 import java.util.Map;
 
 public interface IFileTransferService {
-//    UploadFileVO uploadFile(@NotNull MultipartFile file, @Valid UploadFileDTO uploadFileDTO);
-
-//    void previewFile(HttpServletRequest request, HttpServletResponse response, @Valid PreviewFileDTO dto);
-
-//    PageResult<PreviewImagesVO> pagePreviewImages(@Valid PageParams params);
 
     String directionConnectionDownload(Long id);
 
     UploadFileVO uploadAuthorize(UploadAuthorizationDTO dto);
 
-    Map<Integer, String> directConnectionChunkUploadFile(String uploadId, List<Integer> chunkNumbers);
+    Map<Integer, String> directConnectionChunkUploadFile(Long taskId, List<Integer> chunkNumbers);
 
-    void uploadChunkFileMerge(@NotBlank String uploadId, @NotNull Map<Integer,String> parts);
+    void uploadChunkFileMerge(@NotBlank Long taskId);
 
-    String directConnectionWholeUploadFile(String uploadId);
+    String directConnectionWholeUploadFile(Long taskId);
 
     String directionConnectionPreview(@Valid PreviewFileDTO dto);
 
     PageResult<PreviewImagesVO> previewThumbnailsPage(PageParams params);
 
-    void saveUploadFile( String uploadId);
+    void saveUploadFile( Long taskId);
 }

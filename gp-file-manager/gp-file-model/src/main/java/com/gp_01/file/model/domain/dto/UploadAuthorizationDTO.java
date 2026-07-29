@@ -24,8 +24,6 @@ public class UploadAuthorizationDTO {
     @SchemaProperty(name = "文件大小")
     private Long fileSize;
 
-    @NotNull
-    @SchemaProperty(name = "是否分片")
-    private Boolean isSlice;
+
 
 }

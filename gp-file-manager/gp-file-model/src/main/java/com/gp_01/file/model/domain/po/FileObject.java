@@ -52,9 +52,6 @@ public class FileObject implements Serializable {
     @SchemaProperty(name = "文件MIME类型 image/jpeg、application/pdf等")
     private String contentType;
 
-    @SchemaProperty(name = "文件后缀 jpg/mp4/docx")
-    private String fileSuffix;
-
     @SchemaProperty(name = "引用计数：多少用户在使用该文件，计数为0时删除MinIO文件")
     private Integer refCount;
 

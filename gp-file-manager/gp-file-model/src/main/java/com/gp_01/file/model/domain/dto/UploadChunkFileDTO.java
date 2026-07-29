@@ -7,8 +7,8 @@ import lombok.Data;
 import java.util.List;
 @Data
 public class UploadChunkFileDTO {
-    @NotBlank
-    private String uploadId;
+    @NotNull
+    private Long taskId;
 
     @NotNull
     private List<Integer> chunkNumbers;
