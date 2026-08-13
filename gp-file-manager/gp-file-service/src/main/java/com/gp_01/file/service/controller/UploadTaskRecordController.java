@@ -39,13 +39,13 @@ public class UploadTaskRecordController {
 
     @PostMapping("save")
     @Operation(summary = "保存上传进度", description = "异步保存，先存缓存")
-    public Result<?> uploadProgressSave(@RequestBody UploadProgressSaveDTO dto){
+    public Result<Void> uploadProgressSave(@RequestBody UploadProgressSaveDTO dto){
         uploadTaskRecordService.uploadProgressAsyncSave(dto);
         return Result.success();
     }
     @DeleteMapping("delete/batch")
     @Operation(summary = "删除上传任务")
-    public Result<?> uploadProgressDeleteBatch(@RequestBody List<Long> taskIds){
+    public Result<Void> uploadProgressDeleteBatch(@RequestBody List<Long> taskIds){
         uploadTaskRecordService.uploadProgressDeleteBatch(taskIds);
         return Result.success();
     }

@@ -336,7 +336,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         //查询出文件夹的所有文件
         List<UserFile> files = null;
         if (!dirIds.isEmpty()) {
-            files = userFileMapper.listByDirIds(dirIds);
+            files = userFileMapper.listFilesByDirIds(dirIds);
             for (UserFile file : files) {
                 if (file.getIsDirectory() == 0) {
                     fileIds.add(file.getObjectId());

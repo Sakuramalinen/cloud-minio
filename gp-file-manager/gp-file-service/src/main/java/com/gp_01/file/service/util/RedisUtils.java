@@ -14,6 +14,7 @@ import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -93,11 +94,11 @@ public class RedisUtils {
     }
 
     /**
-     * 获取对象
+     * 获取对象并续期
      */
-    public <T> T getObject(String key, Class<T> tClass) {
+    public <T> T getObjectAndReNew(String key, Class<T> tClass, Duration timeOut) {
         try {
-            String jsonStr = stringRedisTemplate.opsForValue().get(key);
+            String jsonStr = stringRedisTemplate.opsForValue().getAndExpire(key, timeOut);
             log.debug("读取 -> {}", jsonStr);
             return objectMapper.readValue(jsonStr, tClass);
         } catch (JsonProcessingException e) {

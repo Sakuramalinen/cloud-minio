@@ -31,21 +31,21 @@
     </select>
 
 
-    <select id="listByDirIds" resultType="com.gp_01.file.model.domain.po.UserFile">
-        with recursive tree as (select t1.id, t1.media_category, t1.object_id
+    <select id="listFilesByDirIds" resultType="com.gp_01.file.model.domain.po.UserFile">
+        with recursive tree as (select t1.id, t1.is_directory, t1.object_id
                                 from user_file t1
                                 where id in
                                 <foreach collection="dirIds" item="id" open="(" separator="," close=")">
                                     #{id}
                                 </foreach>
                                 union all
-                                select t2.id, t2.media_category, t2.object_id
+                                select t2.id, t2.is_directory, t2.object_id
                                 from tree t1
                                          inner join user_file t2 on t1.id = t2.parent_id
 #                                 where t2.media_category != 0
         )
-        select object_id, id, media_category
-        from tree where media_category not in (-1);
+        select object_id, id, is_directory
+        from tree where is_directory != 1;
     </select>
 
 

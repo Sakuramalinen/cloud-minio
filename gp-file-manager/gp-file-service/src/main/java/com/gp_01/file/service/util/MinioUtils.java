@@ -1,5 +1,6 @@
 package com.gp_01.file.service.util;
 
+import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.exception.CommonException;
 import com.gp_01.file.service.config.MinioConfig;
 import io.minio.*;
@@ -99,6 +100,7 @@ public class MinioUtils {
 
     /**
      * 获取文件ETAG
+     *
      * @param bucketName
      * @param objectPath
      * @return
@@ -139,11 +141,12 @@ public class MinioUtils {
 
     /**
      * 清理上传中断分片文件
+     *
      * @param bucketName
      * @param objectPath
      * @param uploadId
      */
-    public void abortInCompleteMultipartUpload(String bucketName, String objectPath, String uploadId){
+    public void abortInCompleteMultipartUpload(String bucketName, String objectPath, String uploadId) {
         AbortMultipartUploadArgs args = AbortMultipartUploadArgs.builder()
                 .bucket(bucketName)
                 .object(objectPath)
@@ -155,6 +158,25 @@ public class MinioUtils {
         });
     }
 
+    /**
+     * 判断文件是否存在
+     * @param bucketName
+     * @param objectPath
+     * @return 该文件ETag
+     */
+    public String fileExist(String bucketName, String objectPath) {
+        try {
+            StatObjectArgs args = StatObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(objectPath)
+                    .build();
+            StatObjectResponse response = minioClient.statObject(args);
+            return response.etag();
+        } catch (MinioException e) {
+            log.error("获取文件存储状态失败 -> bucket:{}, object:{}", bucketName, objectPath, e);
+            throw new CommonException(ErrorCode.MIDDLEWARE_ERROR);
+        }
+    }
 
 
 

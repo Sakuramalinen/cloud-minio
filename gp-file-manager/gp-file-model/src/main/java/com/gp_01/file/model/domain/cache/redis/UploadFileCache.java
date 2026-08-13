@@ -11,14 +11,6 @@ public class UploadFileCache {
 
     private String objectPath;
 
-    private String fileMd5;
-
-    private String fileName;
-
-    private Long fileSize;
-
-    private Long parentId;
-
     private String uploadId;
 
 

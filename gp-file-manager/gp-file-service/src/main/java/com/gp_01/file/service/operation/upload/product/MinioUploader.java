@@ -116,6 +116,7 @@ public class MinioUploader extends Uploader {
                     .uploadId(uploadId)
                     .partNumberMarker(partNumberMarker)
                     .build();
+            //TODO 通过反射设置字段
             Field objectName = ObjectArgs.class.getDeclaredField("objectName");
             objectName.setAccessible(true);
             objectName.set(partsArgs, objectPath);
@@ -143,7 +144,7 @@ public class MinioUploader extends Uploader {
                     .object(objectPath)
                     .parts(p)
                     .build();
-            ObjectWriteResponse objectWriteResponse = minioAsyncClient.completeMultipartUpload(args).get(10L, TimeUnit.SECONDS);
+            ObjectWriteResponse objectWriteResponse = minioAsyncClient.completeMultipartUpload(args).get(60L, TimeUnit.SECONDS);
             return objectWriteResponse.etag();
         } catch (Exception e) {
             log.error("合并分片失败, path: {}", objectPath, e);

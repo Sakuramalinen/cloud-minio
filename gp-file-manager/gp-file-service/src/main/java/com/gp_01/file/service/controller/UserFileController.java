@@ -75,7 +75,7 @@ public class UserFileController {
 
     @GetMapping("recycle/page")
     @Operation(summary = "查看回收站")
-    public PageResult<ListRecycleBinVO> RecyclePage(PageParams params) {
+    public PageResult<ListRecycleBinVO> recyclePage(PageParams params) {
         return userFileService.recyclePage(params);
     }
 
@@ -106,7 +106,7 @@ public class UserFileController {
         List<UserFile> res = userFileService.listDirByParentId(parentId);
         return Result.success(res);
     }
-    //TODO 文件分享功能
+
     @GetMapping("list/type/{file-type}")
     @Operation(summary = "根据文件类型分页查询")
     public PageResult<UserFile> listFileByTypeAndPage(@Valid PageParams params, @PathVariable("file-type") @NotNull Integer type) {

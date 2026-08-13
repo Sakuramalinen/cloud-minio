@@ -1,9 +1,7 @@
 package com.gp_01.file.service.mapper;
 
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.gp_01.file.model.domain.po.UserFile;
-import com.gp_01.file.model.domain.query.PageFilesQuery;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
@@ -24,7 +22,7 @@ public interface UserFileMapper extends BaseMapper<UserFile> {
      * @param dirIds
      * @return id, fileId, fileType
      */
-    List<UserFile> listByDirIds(@Param("dirIds") List<Long> dirIds);
+    List<UserFile> listFilesByDirIds(@Param("dirIds") List<Long> dirIds);
 
     /**
      * 文件列表分页查询

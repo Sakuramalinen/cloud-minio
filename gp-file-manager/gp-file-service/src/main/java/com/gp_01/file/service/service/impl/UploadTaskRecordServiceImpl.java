@@ -15,6 +15,7 @@ import com.gp_01.file.service.util.RedisUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -67,8 +68,8 @@ public class UploadTaskRecordServiceImpl extends ServiceImpl<UploadTaskRecordMap
                         String chunkBitmap = cacheMap.get("chunkBitmap");
                         uploadTaskRecord.setChunkBitmap(chunkBitmap);
                     }
-                } catch (Exception ignored) {
-
+                } catch (Exception e) {
+                    log.error("查看上传进度获取缓存错误 -> {}", e);
                 }
             }
         }
@@ -97,6 +98,7 @@ public class UploadTaskRecordServiceImpl extends ServiceImpl<UploadTaskRecordMap
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void uploadProgressSaveBatch(UploadProgressSaveDTO dto) {
         //修改进度，状态
         List<UploadTaskRecord> list = new ArrayList<>();
