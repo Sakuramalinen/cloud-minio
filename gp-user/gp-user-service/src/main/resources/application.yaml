@@ -51,7 +51,6 @@ gp:
     resource:
       enable: true
       exclude-path:
-        - "/user/get/phone"
-        - "/user/get/email"
+        - "/user/create"
       include-path:
         - "/user/**"

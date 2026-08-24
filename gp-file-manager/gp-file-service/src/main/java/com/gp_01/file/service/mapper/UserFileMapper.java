@@ -1,9 +1,7 @@
 package com.gp_01.file.service.mapper;
 
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.gp_01.file.model.domain.po.UserFile;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.gp_01.file.model.domain.query.PageFilesQuery;
+import com.gp_01.file.model.domain.po.UserFile;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
@@ -24,7 +22,7 @@ public interface UserFileMapper extends BaseMapper<UserFile> {
      * @param dirIds
      * @return id, fileId, fileType
      */
-    List<UserFile> listByDirIds(@Param("dirIds") List<Long> dirIds);
+    List<UserFile> listFilesByDirIds(@Param("dirIds") List<Long> dirIds);
 
     /**
      * 文件列表分页查询
@@ -33,7 +31,7 @@ public interface UserFileMapper extends BaseMapper<UserFile> {
      * @param userId
      * @return
      */
-    Page<UserFile> listFileByPage(Page<UserFile> page, @Param("query")PageFilesQuery query, @Param("userId") Long userId);
+//    Page<UserFile> listFileByPage(Page<UserFile> page, @Param("query")PageFilesQuery query, @Param("userId") Long userId);
 
     /**
      * 查询一个目录中是否有同名文件

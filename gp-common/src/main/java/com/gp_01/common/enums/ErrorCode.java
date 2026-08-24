@@ -27,7 +27,7 @@ public enum ErrorCode {
 
 
     RECOURSE_ERROR(10600, "用户资源异常"),
-    RECOURSE_NOT_FOUND_ERROR(10601, "文件不存在"),
+    RECOURSE_NOT_FOUND_ERROR(10601, "资源不存在"),
     RECOURSE_READ_ERROR(10610, "文件读取错误"),
 
     UPLOAD_FILE_ERROR(10700, "用户上传文件异常"),
@@ -37,6 +37,7 @@ public enum ErrorCode {
 
     //==================调用第三方服务错误==================
     MIDDLEWARE_ERROR(20100, "中间件错误"),
+    OSS_ERROR(20110, "对象存储服务异常"),
 
     DB_ERROR(30300, "数据库错误");
 

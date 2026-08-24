@@ -1,5 +1,6 @@
 package com.gp_01.file.service.config;
 
+import io.minio.MinioAsyncClient;
 import io.minio.MinioClient;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -12,17 +13,26 @@ import org.springframework.context.annotation.Configuration;
 public class MinioConfig {
     private String url;
     private String bucketName;
+    private String avatarBucketName;
     private String tempBucketName;
     private String accessKey;
     private String secretKey;
     private Integer tempSignedUrlExpireMinute;
 
     @Bean
-    public MinioClient minioClient(){
+    public MinioClient minioClient() {
         return new MinioClient.Builder()
                 .endpoint(url)
                 .credentials(accessKey, secretKey)
                 .build();
     }
+    @Bean
+    public MinioAsyncClient minioAsyncClient() {
+        return new MinioAsyncClient.Builder()
+                .endpoint(url)
+                .credentials(accessKey, secretKey)
+                .build();
+    }
+
 
 }

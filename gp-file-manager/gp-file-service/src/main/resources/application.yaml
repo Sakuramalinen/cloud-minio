@@ -41,7 +41,15 @@ spring:
       discovery:
         group: gp-project
         namespace: 5e09156e-dc92-4641-8aba-bc14328befa8
+  # rabbitmq
+  rabbitmq:
+    host: localhost
+    port: 5672
+    virtual-host: gp_01
+    username: admin
+    password: 3186255
 
+  # redis
   data:
     redis:
       host: localhost
@@ -55,6 +63,12 @@ logging:
 gp:
   file-service:
     recycle-save-day: 10
+    chunk-upload-threshold: 100MB
+    chunk-strategy-map:
+      0MB: 10MB
+      1GB: 50MB
+      10GB: 100MB
+      50GB: 200MB
   minio:
     url: http://localhost:9000
     access-key: admin
@@ -62,6 +76,7 @@ gp:
     bucket-name: local
     temp-signed-url-expire-minute: 10
     temp-bucket-name: temp
+    avatar-bucket-name: local-avatar
   thumbnails:
     width: 100
   auth:

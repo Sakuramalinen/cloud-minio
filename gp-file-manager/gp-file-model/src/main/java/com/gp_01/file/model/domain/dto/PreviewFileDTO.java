@@ -9,8 +9,8 @@ import lombok.Data;
 @Data
 public class PreviewFileDTO {
     @NotNull
-    @SchemaProperty(name = "是否分流传输")
-    private Boolean chunkStreamed;
+    @SchemaProperty(name = "目录文件id")
+    private Long userFileId;
 
     @NotNull
     @SchemaProperty(name = "文件大小")

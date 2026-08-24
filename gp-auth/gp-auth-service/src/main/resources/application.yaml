@@ -20,7 +20,11 @@ spring:
       discovery:
         namespace: 5e09156e-dc92-4641-8aba-bc14328befa8
         group: gp-project
-
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/gp_auth
+    username: root
+    password: 3186255
 
 server:
   port: 8101
@@ -29,6 +33,7 @@ gp:
     resource:
       exclude-path:
         - "/account/login"
+        - "/account/register"
     jwt:
       expire: 172800 # 2天
       secret: "`1234567890-=qwertyuiop[]\asdfghjkl;'zxcvbnm,./"

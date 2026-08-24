@@ -1,20 +1,16 @@
 package com.gp_01.user.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.gp_01.common.context.UserContext;
 import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.exception.BadRequestException;
-
-import com.gp_01.model.domain.dto.RegisterDTO;
-import com.gp_01.model.domain.po.User;
-import com.gp_01.model.enums.UserStatusEnum;
+import com.gp_01.user.model.domain.po.User;
 import com.gp_01.user.mapper.UserMapper;
 import com.gp_01.user.service.IUserService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -28,51 +24,63 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
-    @Autowired
-    private final PasswordEncoder encoder;
+
+
     @Override
-    public void register(RegisterDTO dto) {
-        //TODO 校验验证码
-        //判断是否存在
-        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(dto.getEmail() != null, User::getEmail, dto.getEmail())
-                .eq(dto.getPhone() != null, User::getPhone, dto.getPhone());
-        User one = super.getOne(wrapper);
-        if (one != null) {
-            log.debug("用户已存在");
-            throw new BadRequestException(ErrorCode.USER_EXIST_ERROR);
+    public User getUserInfo(Long accountId) {
+        return super.getById(accountId);
+    }
+
+    @Override
+    public void updateUserInfo(User user) {
+        Long userId = UserContext.getUser();
+        if(!user.getId().equals(userId)){
+            throw new BadRequestException(ErrorCode.AUTHORITY_ERROR.getCode(),"暂无权限");
         }
-        //密码加密
-        String encodePassword = encoder.encode(dto.getPassword());
+        super.lambdaUpdate()
+                .eq(User::getId, user.getId())
+                .set(!user.getNickname().isBlank(), User::getNickname, user.getNickname())
+                .set(user.getAvatarId() != null, User::getAvatarId, user.getAvatarId())
+                .update();
+
+    }
+
+    @Override
+    public User createUser() {
+
         User user = new User();
-        user.setPassword(encodePassword);
-        user.setPhone(dto.getPhone());
-        user.setEmail(dto.getEmail());
-
-        //设置默认参数
-        setDefault(user);
-        //存数据库
+        setUserDefault(user);
         super.save(user);
+
+        return user;
     }
 
     @Override
-    public User getUserByPhone(String phone) {
-        return lambdaQuery().eq(User::getPhone, phone).one();
+    public void incrementUsedStoreSize(Long size) {
+        Long userId = UserContext.getUser();
+        super.lambdaUpdate().eq(User::getId, userId)
+                .setSql("used_store_size = greatest(used_store_size + {0}, 0)", size)
+                .update();
     }
 
     @Override
-    public User getUserByEmail(String email) {
-        return lambdaQuery().eq(User::getEmail, email).one();
+    public void minusUsedStoreSize(Long size) {
+        Long userId = UserContext.getUser();
+        super.lambdaUpdate().eq(User::getId, userId)
+                .setSql("used_store_size = greatest(used_store_size - {0}, 0)", size)
+                .update();
     }
 
-    public void setDefault(User user){
-        //TODO设置默认昵称
-        UUID uuid = UUID.randomUUID();
-        user.setNickname(uuid.toString());
-        //TODO设置默认头像
-        String url = "https://gips3.baidu.com/it/u=4028841722,3177937756&fm=3074&app=3074&f=PNG?w=2048&h=2048";
-        user.setAvatar(url);
-        user.setStatus(UserStatusEnum.NORMAL);
-        user.setDeleted(0);
+    private void setUserDefault(User user){
+        //TODO 默认昵称
+        String nickname = UUID.randomUUID().toString();
+        LocalDateTime vipExpireTime = LocalDateTime.of(1900, 1,1,0,0);
+
+        user.setNickname(nickname);
+        user.setTotalStoreSize(10L * 1024 * 1024);
+        user.setUsedStoreSize(0L);
+        user.setVipExpireTime(vipExpireTime);
+        user.setAvatarId(0L);
+
     }
 }

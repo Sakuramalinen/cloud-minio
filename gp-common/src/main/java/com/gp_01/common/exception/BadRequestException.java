@@ -7,12 +7,20 @@ import com.gp_01.common.enums.ErrorCode;
  */
 public class BadRequestException extends CommonException {
 
-    public BadRequestException(ErrorCode errorCode) {
-        super(errorCode);
+
+    public BadRequestException(ErrorCode errorCode, Throwable cause) {
+        super(errorCode, cause);
+    }
+
+    public BadRequestException(Integer code, String msg, Throwable cause) {
+        super(code, msg, cause);
     }
 
     public BadRequestException(Integer code, String msg) {
         super(code, msg);
     }
 
+    public BadRequestException(ErrorCode errorCode) {
+        super(errorCode);
+    }
 }

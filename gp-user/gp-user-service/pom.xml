@@ -18,11 +18,7 @@
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>com.shenyongqi.gp</groupId>
-            <artifactId>gp-common</artifactId>
-            <version>0.0.1</version>
-        </dependency>
+
         <dependency>
             <groupId>com.shenyongqi.gp</groupId>
             <artifactId>gp-user-model</artifactId>

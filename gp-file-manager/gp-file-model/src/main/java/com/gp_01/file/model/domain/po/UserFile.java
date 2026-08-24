@@ -1,88 +1,76 @@
 package com.gp_01.file.model.domain.po;
 
 import com.baomidou.mybatisplus.annotation.*;
-import com.baomidou.mybatisplus.core.toolkit.StringUtils;
-import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
+
+import java.io.Serial;
+import java.time.LocalDateTime;
+
+import java.io.Serializable;
+
 import com.gp_01.common.enums.FileTypeEnum;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.SchemaProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
-
-import java.io.Serial;
-import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
  * <p>
- * 用户逻辑文件表
+ * 用户逻辑目录表
  * </p>
  *
- * @author employee_01
- * @since 2026-05-08
+ * @author shenyongqi
+ * @since 2026-07-19
  */
 @Data
+@NoArgsConstructor
 @EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
 @TableName("user_file")
-@Schema(name="UserFile对象", description="用户逻辑文件表")
+@Schema(name = "UserFile对象", description = "用户逻辑目录表")
 public class UserFile implements Serializable {
-
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @SchemaProperty(name = "主键")
+    @SchemaProperty(name = "用户文件记录ID")
     @TableId(value = "id", type = IdType.ASSIGN_ID)
     private Long id;
 
-    @SchemaProperty(name = "用户id")
+    @SchemaProperty(name = "归属用户ID")
     private Long userId;
 
-    @SchemaProperty(name = "文件id")
-    private Long fileId;
-
-    @SchemaProperty(name = "父文件夹ID(根目录规定为0)")
+    @SchemaProperty(name = "父级目录ID，0代表根目录")
     private Long parentId;
 
-    @SchemaProperty(name = "文件或文件夹名称")
+    @SchemaProperty(name = "关联物理文件ID，文件夹此字段为null")
+    private Long objectId;
+
+    @SchemaProperty(name = "用户自定义文件名/文件夹名")
     private String fileName;
 
-    @SchemaProperty(name = "文件后缀名")
-    private String fileSuffix;
-
-    @SchemaProperty(name = "文件大小字节")
+    @SchemaProperty(name = "文件大小(冗余字段)")
     private Long fileSize;
 
-    @SchemaProperty(name = "文件唯一标识")
-    private String fileMd5;
+    @SchemaProperty(name = "条目类型 1=文件夹 0=实体文件")
+    private Integer isDirectory;
 
-    @SchemaProperty(name = "MIME类型")
-    private String contentType;
+    @SchemaProperty(name = "文件细分类型：1视频 2音频 3图片 4文本 5其他，文件夹为null")
+    private FileTypeEnum mediaCategory;
 
-    @SchemaProperty(name = "文件类型")
-    private FileTypeEnum fileType;
+    @SchemaProperty(name = "排序权重，数值越大展示越靠前")
+    private Integer sort;
 
-    @TableField(fill = FieldFill.INSERT_UPDATE)
+    @SchemaProperty(name = "0表示未删除，非0表示删除时间戳")
+    private Long deleted;
+
     @SchemaProperty(name = "创建时间")
+    @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
-    @TableField(fill = FieldFill.INSERT_UPDATE)
     @SchemaProperty(name = "修改时间")
+    @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
 
-    @SchemaProperty(name = "逻辑删除 0存在 时间戳删除")
-    private Long deleted;
-    //TODO 文件路径 userid/主键id/主键id
-    // String path
 
-    public static SFunction<UserFile, ?> getSortByColumn(String sortBy){
-        if(StringUtils.isEmpty(sortBy))return UserFile::getCreateTime;
-        return switch(sortBy){
-            case "updateTime" -> UserFile::getUpdateTime;
-            case "fileName" -> UserFile::getFileName;
-            case "fileSize" -> UserFile::getFileSize;
-            default  -> UserFile::getCreateTime;
-        };
-    }
 }
