@@ -159,24 +159,30 @@ public class MinioUtils {
     }
 
     /**
-     * 判断文件是否存在
+     * 获取文件状态
      * @param bucketName
      * @param objectPath
-     * @return 该文件ETag
+     * @return 该文件状态
      */
-    public String fileExist(String bucketName, String objectPath) {
+    public FileStatus getFileStatus(String bucketName, String objectPath) {
         try {
             StatObjectArgs args = StatObjectArgs.builder()
                     .bucket(bucketName)
                     .object(objectPath)
                     .build();
             StatObjectResponse response = minioClient.statObject(args);
-            return response.etag();
+            return new FileStatus()
+                    .setSize(response.size())
+                    .setObject(response.object())
+                    .setContentType(response.contentType())
+                    .setBucket(response.bucket())
+                    .setETag(response.etag());
         } catch (MinioException e) {
             log.error("获取文件存储状态失败 -> bucket:{}, object:{}", bucketName, objectPath, e);
             throw new CommonException(ErrorCode.MIDDLEWARE_ERROR);
         }
     }
+
 
 
 

@@ -49,6 +49,22 @@ public class FileUtils {
 
         return tika.detect(buff, fileName);
     }
+    /**
+     * 从文件二进制中获取contentType
+     * @param objectPath 存储路径
+     * @return contentType
+     */
+    public String getContentTypeByFileBinary(String objectPath){
+
+        byte[] buff = new byte[2048];
+        try(InputStream is = minioUtils.downloadFile(objectPath)) {
+            int read = is.read(buff);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        return tika.detect(buff);
+    }
 
     /**
      * 分割文件名的名字和后缀
@@ -100,15 +116,36 @@ public class FileUtils {
         return basePath + "/" + fileMd5 + "_" + chunkIndex + CHUNK_UPLOAD_SUFFIX;
     }
 
+    /**
+     * 获取对象存储路径
+     * @param fileMd5
+     * @param fileName
+     * @return
+     */
     public String getOriginalFileStorePath(String fileMd5, String fileName){
         String basePath = getBasePath(fileMd5);
         String fileExtendName = getFileExtendName(fileName);
         return MinioConstants.ORIGINAL_PATH_HEAD + "/" + basePath+ "/" + fileMd5 + fileExtendName;
     }
 
+    /**
+     * 获取缩略图存储路径
+     * @param fileMd5
+     * @param extendName
+     * @return
+     */
     public String getThumbnailFileStorePath(String fileMd5, String extendName){
         String basePath = getBasePath(fileMd5);
         return MinioConstants.THUMBNAIL_PATH_HEAD + "/" + basePath+ "/" + fileMd5 + extendName;
+    }
+
+    /**
+     * 获取头像存储路径
+     * @param filename
+     * @return
+     */
+    public String getAvatarFileStorePath(String filename, Long userId){
+        return MinioConstants.AVATAR_PATH_HEAD + "/" +userId + "/" + filename;
     }
 
     public String getBasePath(String fileMd5){

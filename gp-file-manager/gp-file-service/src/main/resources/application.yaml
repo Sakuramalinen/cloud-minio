@@ -76,6 +76,7 @@ gp:
     bucket-name: local
     temp-signed-url-expire-minute: 10
     temp-bucket-name: temp
+    avatar-bucket-name: local-avatar
   thumbnails:
     width: 100
   auth:

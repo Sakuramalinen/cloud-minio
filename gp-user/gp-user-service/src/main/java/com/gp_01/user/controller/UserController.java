@@ -2,20 +2,13 @@ package com.gp_01.user.controller;
 
 
 import com.gp_01.common.domain.Result;
-import com.gp_01.model.domain.dto.RegisterDTO;
-import com.gp_01.model.domain.po.User;
+import com.gp_01.user.model.domain.po.User;
 import com.gp_01.user.service.IUserService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.ListableBeanFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * <p>
@@ -33,33 +26,48 @@ public class UserController {
 
     private final IUserService userService;
 
+    @GetMapping("get")
+    @Operation(summary = "获取用户信息")
+    public Result<User> getUserInfo(@NotNull Long id){
+        User user = userService.getUserInfo(id);
+        return Result.success(user);
+    }
 
 
-    @PostMapping("register")
-    @Operation(summary = "用户注册")
-    public Result<Void> register(@RequestBody @Valid RegisterDTO dto){
-        userService.register(dto);
+    @PostMapping("update")
+    @Operation(summary = "修改用户基本信息")
+    public Result<Void> updateUserInfo(User user){
+        userService.updateUserInfo(user);
         return Result.success();
     }
 
-    @GetMapping("list")
-    @Operation(summary = "获取用户列表")
-    public Result<List<User>> list(){
-        List<User> list = userService.list();
-        return Result.success(list);
-    }
-    @GetMapping("get/phone")
-    @Operation(summary = "根据手机号查询用户")
-    public Result<User> getUserByPhone(@RequestParam @NotBlank String phone){
-        User user = userService.getUserByPhone(phone);
+    @PostMapping("create")
+    @Operation(summary = "创建用户")
+    public Result<User> createUser(){
+        User user = userService.createUser();
         return Result.success(user);
     }
-    @GetMapping("get/email")
-    @Operation(summary = "根据邮箱查询用户")
-    public Result<User> getUserByEmail(@RequestParam @NotBlank String email){
-        User user = userService.getUserByEmail(email);
-        return Result.success(user);
+
+    @PostMapping("store/increment")
+    @Operation(summary = "增加已使用存储空间", description = "上传文件时 文件服务内部调用")
+    public Result<Long> incrementUsedStoreSize(Long size){
+        userService.incrementUsedStoreSize(size);
+        return Result.success();
     }
+
+    @PostMapping("store/minus")
+    @Operation(summary = "减少已使用存储空间", description = "删除文件时 文件服务内部调用")
+    public Result<Long> minusUsedStoreSize(Long size){
+        userService.minusUsedStoreSize(size);
+        return Result.success();
+    }
+
+
+
+
+
+
+
 
 
 

@@ -18,6 +18,7 @@ import com.gp_01.file.service.mapper.UserFileMapper;
 import com.gp_01.file.service.service.IUserFileService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gp_01.file.service.util.FileUtils;
+import com.gp_01.user.api.client.UserClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -50,6 +51,8 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
     private final FileObjectMapper fileObjectMapper;
 
     private final FileServiceProperties fileServiceProperties;
+
+    private final UserClient userClient;
 
 
     /**
@@ -157,6 +160,10 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
                 .set(UserFile::getDeleted, timeStamp)
                 .update();
 
+        //减少已使用空间大小
+        userClient.minusUsedStoreSize(one.getFileSize());
+
+
     }
 
     @Override
@@ -187,7 +194,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         return PageResult.of(page);
     }
 
-
+    //TODO 未排序
     @Override
     public PageResult<ListRecycleBinVO> recyclePage(PageParams params) {
         Long userId = UserContext.getUser();

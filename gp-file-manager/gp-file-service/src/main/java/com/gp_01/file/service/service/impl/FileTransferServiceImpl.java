@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gp_01.common.context.UserContext;
+import com.gp_01.common.domain.Result;
 import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.common.enums.ErrorCode;
@@ -29,7 +30,8 @@ import com.gp_01.file.service.operation.preview.product.MinioPreviewer;
 import com.gp_01.file.service.operation.upload.product.MinioUploader;
 import com.gp_01.file.service.service.IFileTransferService;
 import com.gp_01.file.service.util.*;
-import io.minio.errors.MinioException;
+import com.gp_01.user.api.client.UserClient;
+import com.gp_01.user.model.domain.po.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -68,6 +70,8 @@ public class FileTransferServiceImpl implements IFileTransferService {
     private final MinioConfig minioConfig;
 
     private final MinioUtils minioUtils;
+
+    private final UserClient userClient;
 
     private final ThumbnailUtils thumbnailUtils;
 
@@ -118,6 +122,13 @@ public class FileTransferServiceImpl implements IFileTransferService {
         if (userFile != null) {
             throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "该目录下存在同名文件");
         }
+        //判断剩余空间是否足够
+        Result<User> userResult = userClient.getUserInfo(userId);
+        User userinfo = userResult.getData();
+        if(userinfo.getTotalStoreSize() - userinfo.getUsedStoreSize() < dto.getFileSize()){
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "可用存储空间不足");
+        }
+
         //判断秒传
         FileObject fileObject = fileObjectMapper.selectOne(new LambdaQueryWrapper<FileObject>().eq(FileObject::getFileMd5, dto.getFileMd5()));
         if (fileObject != null) {
@@ -323,8 +334,12 @@ public class FileTransferServiceImpl implements IFileTransferService {
         //删除数据库中上传任务
         uploadTaskRecordMapper.deleteById(taskId);
 
+        //累加空间使用大小
+        userClient.incrementUsedStoreSize(uploadTaskRecord.getFileSize());
+
 
     }
+
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -336,20 +351,22 @@ public class FileTransferServiceImpl implements IFileTransferService {
         if (uploadTaskRecord == null) {
             throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "任务不存在");
         }
-        String eTag;
+        String eTag = "";
         try {
             //合并分片，获取eTag
             minioUploader.chunkFileMerge(uploadTaskRecord.getBucketName(), uploadTaskRecord.getObjectPath(), uploadTaskRecord.getUploadId());
             //查询存储服务，检查是否合并成功
             eTag = minioUtils.getFielETag(uploadTaskRecord.getBucketName(), uploadTaskRecord.getObjectPath());
-        } finally {
-            //清除所有切片
-            minioUtils.abortInCompleteMultipartUpload(uploadTaskRecord.getBucketName(), uploadTaskRecord.getObjectPath(), uploadTaskRecord.getUploadId());
+
+        } catch(Exception e){
             //标记上传任务为失败
             LambdaUpdateWrapper<UploadTaskRecord> updateWrapper = new LambdaUpdateWrapper<UploadTaskRecord>()
                     .eq(UploadTaskRecord::getTaskId, taskId)
                     .set(UploadTaskRecord::getStatus, 3);
             uploadTaskRecordMapper.update(updateWrapper);
+        } finally {
+            //清除所有切片
+            minioUtils.abortInCompleteMultipartUpload(uploadTaskRecord.getBucketName(), uploadTaskRecord.getObjectPath(), uploadTaskRecord.getUploadId());
         }
         if (eTag.isEmpty()) {
             throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传文件失败");
@@ -365,6 +382,9 @@ public class FileTransferServiceImpl implements IFileTransferService {
 
         //删除数据库中上传任务
         uploadTaskRecordMapper.deleteById(taskId);
+
+        //累加已使用空间
+        userClient.incrementUsedStoreSize(uploadTaskRecord.getFileSize());
 
     }
 

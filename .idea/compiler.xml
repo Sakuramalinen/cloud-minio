@@ -9,8 +9,9 @@
         <outputRelativeToContentRoot value="true" />
         <module name="gp-auth-recourse-sdk" />
         <module name="gp-user-api" />
-        <module name="gp-user-model" />
+        <module name="gp-auth-model" />
         <module name="gp-file-model" />
+        <module name="gp-user-model" />
         <module name="gp-user-service" />
         <module name="gp-auth-gateway-sdk" />
         <module name="gp-file-service" />
@@ -31,6 +32,7 @@
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="gp-auth" options="" />
       <module name="gp-auth-gateway-sdk" options="-parameters" />
+      <module name="gp-auth-model" options="-parameters" />
       <module name="gp-auth-recourse-sdk" options="-parameters" />
       <module name="gp-auth-service" options="-parameters" />
       <module name="gp-common" options="-parameters" />

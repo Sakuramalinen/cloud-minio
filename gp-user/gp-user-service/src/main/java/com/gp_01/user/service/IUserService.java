@@ -1,8 +1,8 @@
 package com.gp_01.user.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.gp_01.model.domain.dto.RegisterDTO;
-import com.gp_01.model.domain.po.User;
+import com.gp_01.user.model.domain.po.User;
+import jakarta.validation.constraints.NotNull;
 
 /**
  * <p>
@@ -14,9 +14,14 @@ import com.gp_01.model.domain.po.User;
  */
 public interface IUserService extends IService<User> {
 
-    void register(RegisterDTO registerDTO);
 
-    User getUserByPhone(String phone);
+    User getUserInfo(@NotNull Long accountId);
 
-    User getUserByEmail(String email);
+    void updateUserInfo(User user);
+
+    User createUser();
+
+    void incrementUsedStoreSize(Long size);
+
+    void minusUsedStoreSize(Long size);
 }

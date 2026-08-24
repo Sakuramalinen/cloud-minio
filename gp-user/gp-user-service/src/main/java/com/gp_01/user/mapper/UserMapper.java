@@ -1,7 +1,7 @@
 package com.gp_01.user.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.gp_01.model.domain.po.User;
+import com.gp_01.user.model.domain.po.User;
 
 /**
  * <p>

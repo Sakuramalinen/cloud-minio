@@ -30,4 +30,6 @@ public interface IFileTransferService {
     PageResult<PreviewImagesVO> previewThumbnailsPage(PageParams params);
 
     void saveUploadFile( Long taskId);
+
+
 }

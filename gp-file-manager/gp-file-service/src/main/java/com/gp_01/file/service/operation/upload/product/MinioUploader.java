@@ -151,4 +151,6 @@ public class MinioUploader extends Uploader {
             throw new CommonException(ErrorCode.BUSINESS_ERROR.getCode(), "文件校验失败");
         }
     }
+
+
 }

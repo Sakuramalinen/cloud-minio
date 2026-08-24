@@ -37,7 +37,7 @@ public class UserFileController {
 
 
 
-
+    //TODO 返回id
     @PostMapping("create/dir")
     @Operation(summary = "新建文件夹")
     public Result<Void> makeDir( @RequestBody @Valid MakeDirDTO dto) {
@@ -54,8 +54,8 @@ public class UserFileController {
 
     @PutMapping()
     @Operation(summary = "文件重命名")
-    public Result<Void> reName(@RequestBody @Valid ReNameDTO reNameDTO) {
-        userFileService.reName(reNameDTO.getId(), reNameDTO.getFileName());
+    public Result<Void> fileReName(@RequestBody @Valid FileReNameDTO fileReNameDTO) {
+        userFileService.reName(fileReNameDTO.getId(), fileReNameDTO.getFileName());
         return Result.success();
     }
 
@@ -79,7 +79,7 @@ public class UserFileController {
         return userFileService.recyclePage(params);
     }
 
-    @PutMapping("restore")
+    @PutMapping("restore/batch")
     @Operation(summary = "从回收站恢复文件")
     public Result<Void> restoreRecycleFile(@RequestBody @NotEmpty List<Long> ids) {
         userFileService.restoreFile(ids);
@@ -96,7 +96,7 @@ public class UserFileController {
     @PutMapping("move")
     @Operation(summary = "移动文件或文件夹")
     public Result<Void> moveFile(@RequestBody @Valid MoveFileDTO dto) {
-        userFileService.moveFile(dto.getFileId(), dto.getTargetId());
+        userFileService.moveFile(dto.getFileId(), dto.getParentId());
         return Result.success();
     }
 
@@ -106,7 +106,7 @@ public class UserFileController {
         List<UserFile> res = userFileService.listDirByParentId(parentId);
         return Result.success(res);
     }
-
+    //TODO 与列表查询合并
     @GetMapping("list/type/{file-type}")
     @Operation(summary = "根据文件类型分页查询")
     public PageResult<UserFile> listFileByTypeAndPage(@Valid PageParams params, @PathVariable("file-type") @NotNull Integer type) {

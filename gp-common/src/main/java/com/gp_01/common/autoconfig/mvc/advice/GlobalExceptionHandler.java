@@ -5,6 +5,7 @@ import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.exception.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -12,6 +13,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public Result<?> MethodArgumentNotValidExceptionHandle(MethodArgumentNotValidException e){
+        return Result.error(ErrorCode.PARAM_ERROR);
+    }
 
     @ExceptionHandler(ForbiddenException.class)
     public Result<?> ForbiddenExceptionHandle(ForbiddenException e){

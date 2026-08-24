@@ -11,6 +11,6 @@ public class MoveFileDTO {
     private Long fileId;
 
     @NotNull
-    @Schema(name = "目标id")
-    private Long targetId;
+    @Schema(name = "目标目录id")
+    private Long parentId;
 }
