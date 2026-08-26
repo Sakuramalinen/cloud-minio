@@ -37,12 +37,11 @@ public class UserFileController {
 
 
 
-    //TODO 返回id
     @PostMapping("create/dir")
     @Operation(summary = "新建文件夹")
-    public Result<Void> makeDir( @RequestBody @Valid MakeDirDTO dto) {
-        userFileService.makeDir(dto);
-        return Result.success();
+    public Result<Long> makeDir( @RequestBody @Valid MakeDirDTO dto) {
+        Long id = userFileService.makeDir(dto);
+        return Result.success(id);
     }
 
     @PostMapping("create/multi-dir")
@@ -106,13 +105,19 @@ public class UserFileController {
         List<UserFile> res = userFileService.listDirByParentId(parentId);
         return Result.success(res);
     }
-    //TODO 与列表查询合并
+
     @GetMapping("list/type/{file-type}")
     @Operation(summary = "根据文件类型分页查询")
     public PageResult<UserFile> listFileByTypeAndPage(@Valid PageParams params, @PathVariable("file-type") @NotNull Integer type) {
         return userFileService.listFileByTypeAndPage(params, type);
     }
-
+    //TODO 未测试
+    @GetMapping("copy")
+    @Operation(summary = "复制文件或文件夹")
+    public Result<Void> copyFile(CopyFileDTO dto){
+        userFileService.copyFile(dto);
+        return Result.success();
+    }
 
 
 

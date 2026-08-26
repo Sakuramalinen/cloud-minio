@@ -1,59 +1,27 @@
 spring:
+  config:
+    import: "optional:nacos:gp-gateway-service-local.yaml?group=gp-project&namespace=5e09156e-dc92-4641-8aba-bc14328befa8&refreshEnabled=true"
   profiles:
     active: local
   application:
     name: gp-gateway-service
-server:
-  port: 8100
-
-# 【local环境】
----
-spring:
-  config:
-    activate:
-      on-profile: local
   cloud:
-    gateway:
-      server:
-        webflux:
-          routes:
-            - id: gp-file-service
-              uri: lb://gp-file-service
-              predicates:
-                - Path=/user-file/**,/file-transfer/**,/upload-task-record/**
-            - id: gp-user-service
-              uri: lb://gp-user-service
-              predicates:
-                - Path=/user/**
-            - id: gp-auth-service
-              uri: lb://gp-auth-service
-              predicates:
-                - Path=/account/**,/auth/download/**
-
     nacos:
       server-addr: localhost:8848
       username: nacos
       password: nacos
+      config:
+        group: gp-project
+        file-extension: yaml
+        namespace: 5e09156e-dc92-4641-8aba-bc14328befa8
       discovery:
         group: gp-project
         namespace: 5e09156e-dc92-4641-8aba-bc14328befa8
-server:
-  port: 8100
-
-gp:
-  auth:
-    jwt:
-      expire: 172800 # 2天
-      secret: "`1234567890-=qwertyuiop[]\asdfghjkl;'zxcvbnm,./"
-
-# 【dev环境】
----
-spring:
-  config:
-    activate:
-      on-profile: dev
-
 
 server:
   port: 8100
+
+
+
+
 

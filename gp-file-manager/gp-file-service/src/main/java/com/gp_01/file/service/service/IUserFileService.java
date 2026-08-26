@@ -56,4 +56,5 @@ public interface IUserFileService extends IService<UserFile> {
      */
     void deleteRecycleFileBatch(List<Long> ids);
 
+    void copyFile(CopyFileDTO dto);
 }

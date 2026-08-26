@@ -1,7 +1,16 @@
 package com.gp_01.file.service.config;
 
+import com.gp_01.common.constants.RabbitMqConstants;
+import com.gp_01.file.service.constants.RabbitmqFileConstants;
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.retry.MessageRecoverer;
+import org.springframework.amqp.rabbit.retry.RepublishMessageRecoverer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -24,4 +33,28 @@ public class RabbitConfig {
         factory.setConcurrentConsumers(5);
         return factory;
     }
+
+
+
+    @Bean
+    public MessageRecoverer republishMessageRecoverer(RabbitTemplate rabbitTemplate){
+        return new RepublishMessageRecoverer(rabbitTemplate, RabbitMqConstants.ERROR_EXCHANGE, RabbitmqFileConstants.ERROR_RK_FILE);
+    }
+
+    @Bean
+    public Queue fileErrorQueue(){
+        return new Queue(RabbitmqFileConstants.ERROR_QUEUE_FILE);
+    }
+    @Bean
+    public TopicExchange globalErrorExchange(){
+        return new TopicExchange(RabbitMqConstants.ERROR_EXCHANGE);
+    }
+
+    @Bean
+    public Binding bindingFileErrorQueue(){
+        return BindingBuilder.bind(fileErrorQueue()).to(globalErrorExchange()).with(RabbitmqFileConstants.ERROR_RK_FILE);
+    }
+
+
+
 }

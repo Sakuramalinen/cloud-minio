@@ -29,8 +29,8 @@ public class UserAvatarController {
 
     @PostMapping("upload")
     @Operation(summary = "上传头像", description = "返回预签名上传url")
-    public Result<String> updateAvatar(@RequestBody @NotNull String filename){
-        String url = userAvatarService.uploadAvatar(filename);
+    public Result<String> uploadAvatar(@RequestBody @NotNull String fileName){
+        String url = userAvatarService.uploadAvatar(fileName);
         return Result.success(url);
     }
     @PostMapping("persistence")
