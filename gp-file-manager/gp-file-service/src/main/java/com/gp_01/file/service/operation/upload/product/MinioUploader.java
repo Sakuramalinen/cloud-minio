@@ -153,4 +153,13 @@ public class MinioUploader extends Uploader {
     }
 
 
+    public String uploadFileWhole(byte[] fileByte, String bucketName, String objectPath, String contentType) throws MinioException {
+        PutObjectArgs args = PutObjectArgs.builder().bucket(bucketName)
+                .object(objectPath)
+                .contentType(contentType)
+                .data(fileByte, fileByte.length)
+                .build();
+        return minioClient.putObject(args).etag();
+    }
+
 }

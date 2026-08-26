@@ -10,9 +10,11 @@ import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.enums.FileTypeEnum;
 import com.gp_01.common.exception.BadRequestException;
+import com.gp_01.common.exception.CommonException;
 import com.gp_01.file.model.domain.cache.redis.UploadFileCache;
 import com.gp_01.file.model.domain.dto.PreviewFileDTO;
 import com.gp_01.file.model.domain.dto.UploadAuthorizationDTO;
+import com.gp_01.file.model.domain.dto.UploadFilePostHandleDTO;
 import com.gp_01.file.model.domain.po.FileObject;
 import com.gp_01.file.model.domain.po.UploadTaskRecord;
 import com.gp_01.file.model.domain.po.UserFile;
@@ -20,6 +22,7 @@ import com.gp_01.file.model.domain.vo.PreviewImagesVO;
 import com.gp_01.file.model.domain.vo.UploadFileVO;
 import com.gp_01.file.service.config.FileServiceProperties;
 import com.gp_01.file.service.config.MinioConfig;
+import com.gp_01.file.service.constants.RabbitmqFileConstants;
 import com.gp_01.file.service.constants.RedisKeyFormatter;
 import com.gp_01.file.service.mapper.FileObjectMapper;
 import com.gp_01.file.service.mapper.UploadTaskRecordMapper;
@@ -31,13 +34,17 @@ import com.gp_01.file.service.operation.upload.product.MinioUploader;
 import com.gp_01.file.service.service.IFileTransferService;
 import com.gp_01.file.service.util.*;
 import com.gp_01.user.api.client.UserClient;
+import com.gp_01.user.model.domain.dto.UpdateUsedStoreSizeDTO;
 import com.gp_01.user.model.domain.po.User;
+import io.minio.errors.MinioException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.unit.DataSize;
 
+import java.io.InputStream;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -74,6 +81,8 @@ public class FileTransferServiceImpl implements IFileTransferService {
     private final UserClient userClient;
 
     private final ThumbnailUtils thumbnailUtils;
+
+    private final RabbitTemplate rabbitTemplate;
 
     @Override
     public String directionConnectionDownload(Long id) {
@@ -148,6 +157,7 @@ public class FileTransferServiceImpl implements IFileTransferService {
                     .setSort(0)
                     .setDeleted(0L);
             userFileMapper.insert(userFile);
+            //TODO 增加使用空间
             return new UploadFileVO()
                     .setIsUpload(true);
 
@@ -335,8 +345,35 @@ public class FileTransferServiceImpl implements IFileTransferService {
         uploadTaskRecordMapper.deleteById(taskId);
 
         //累加空间使用大小
-        userClient.incrementUsedStoreSize(uploadTaskRecord.getFileSize());
+        userClient.incrementUsedStoreSize(new UpdateUsedStoreSizeDTO(uploadTaskRecord.getFileSize()));
 
+
+
+        //文件后期处理
+        String fileExtendName = fileUtils.getFileExtendName(uploadTaskRecord.getFileName());
+        String thumbnailFileStorePath = fileUtils.getThumbnailFileStorePath(uploadTaskRecord.getFileMd5(), fileExtendName);
+        UploadFilePostHandleDTO dto = new UploadFilePostHandleDTO(minioConfig.getBucketName(), uploadTaskRecord.getObjectPath(), thumbnailFileStorePath, contentType);
+        rabbitTemplate.convertAndSend(RabbitmqFileConstants.EXCHANGE_TOPIC_FILE, RabbitmqFileConstants.RK_UPLOAD_POST_PROCESS, dto);
+
+    }
+
+    @Override
+    public void uploadFilePostHandle(UploadFilePostHandleDTO dto) {
+
+        boolean isImage = dto.getContentType().split("/")[0].equals("image");
+        //TODO制作图片缩略图
+        if(isImage){
+            DownloadFile downloadFile = new DownloadFile(dto.getBucketName(), dto.getDownloadObjectPath());
+            InputStream inputStream = downloader.downloadBySingleFile(downloadFile);
+            byte[] thumbnailBytes = thumbnailUtils.createThumbnailBytes(inputStream);
+            try {
+                minioUploader.uploadFileWhole(thumbnailBytes, dto.getBucketName(), dto.getUploadObjectPath(), dto.getContentType());
+            } catch (MinioException e) {
+                log.error("缩略图上传失败");
+                throw new CommonException(ErrorCode.OSS_ERROR.getCode(),"上传失败");
+            }
+        }
+        //TODO提取视频封面
 
     }
 
@@ -384,7 +421,7 @@ public class FileTransferServiceImpl implements IFileTransferService {
         uploadTaskRecordMapper.deleteById(taskId);
 
         //累加已使用空间
-        userClient.incrementUsedStoreSize(uploadTaskRecord.getFileSize());
+        userClient.incrementUsedStoreSize(new UpdateUsedStoreSizeDTO(uploadTaskRecord.getFileSize()));
 
     }
 

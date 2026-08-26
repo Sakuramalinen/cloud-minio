@@ -19,6 +19,7 @@ import com.gp_01.file.service.service.IUserFileService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gp_01.file.service.util.FileUtils;
 import com.gp_01.user.api.client.UserClient;
+import com.gp_01.user.model.domain.dto.UpdateUsedStoreSizeDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -161,7 +162,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
                 .update();
 
         //减少已使用空间大小
-        userClient.minusUsedStoreSize(one.getFileSize());
+        userClient.minusUsedStoreSize(new UpdateUsedStoreSizeDTO(one.getFileSize()));
 
 
     }
@@ -194,7 +195,6 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         return PageResult.of(page);
     }
 
-    //TODO 未排序
     @Override
     public PageResult<ListRecycleBinVO> recyclePage(PageParams params) {
         Long userId = UserContext.getUser();
@@ -362,6 +362,34 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         }
         deleteIds.addAll(list.stream().map(UserFile::getId).collect(Collectors.toSet()));
         super.removeBatchByIds(deleteIds);
+    }
+
+    @Override
+    public void copyFile(CopyFileDTO dto) {
+        Long userId = UserContext.getUser();
+        Map<Long, UserFile> userFileMap = super.lambdaQuery()
+                .eq(UserFile::getUserId, userId)
+                .in(UserFile::getId, List.of(dto.getOriginalId(), dto.getTargetId()))
+                .eq(UserFile::getDeleted, 0)
+                .list().stream().collect(Collectors.toMap(UserFile::getId, uf -> uf));
+        if(userFileMap.size() < 2){
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "暂无权限访问");
+        }
+
+        //查找目标目录下是否有相同名字文件
+        UserFile one = fileExist(userId, dto.getTargetId(), userFileMap.get(dto.getOriginalId()).getFileName());
+        if(one != null){
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "目标目录下存在同名文件，复制失败");
+        }
+        //修改
+        UserFile userFile = new UserFile();
+        BeanUtils.copyProperties(userFileMap.get(dto.getOriginalId()),userFile);
+        userFile.setParentId(dto.getTargetId());
+        super.save(userFile);
+        //TODO 增加使用空间
+        userClient.incrementUsedStoreSize(new UpdateUsedStoreSizeDTO(userFileMap.get(dto.getOriginalId()).getFileSize()));
+
+
     }
 
 

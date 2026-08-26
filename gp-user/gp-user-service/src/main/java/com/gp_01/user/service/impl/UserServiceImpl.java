@@ -57,6 +57,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     @Override
     public void incrementUsedStoreSize(Long size) {
+        if (size == null){
+            throw new BadRequestException(ErrorCode.PARAM_ERROR);
+        }
         Long userId = UserContext.getUser();
         super.lambdaUpdate().eq(User::getId, userId)
                 .setSql("used_store_size = greatest(used_store_size + {0}, 0)", size)

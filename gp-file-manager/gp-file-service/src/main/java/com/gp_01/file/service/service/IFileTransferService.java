@@ -4,6 +4,7 @@ import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.file.model.domain.dto.PreviewFileDTO;
 import com.gp_01.file.model.domain.dto.UploadAuthorizationDTO;
+import com.gp_01.file.model.domain.dto.UploadFilePostHandleDTO;
 import com.gp_01.file.model.domain.vo.PreviewImagesVO;
 import com.gp_01.file.model.domain.vo.UploadFileVO;
 import jakarta.validation.Valid;
@@ -30,6 +31,9 @@ public interface IFileTransferService {
     PageResult<PreviewImagesVO> previewThumbnailsPage(PageParams params);
 
     void saveUploadFile( Long taskId);
+
+
+    void uploadFilePostHandle(UploadFilePostHandleDTO dto);
 
 
 }
