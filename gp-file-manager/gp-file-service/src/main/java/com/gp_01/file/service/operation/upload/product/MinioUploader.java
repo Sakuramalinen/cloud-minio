@@ -40,6 +40,7 @@ public class MinioUploader extends Uploader {
 
     /**
      * 分片上传第一步，需要获取上传id
+     * TODO 改成缓存
      */
     public String getUploadId(String bucketName, String objectPath) {
         CreateMultipartUploadArgs args = CreateMultipartUploadArgs.builder()

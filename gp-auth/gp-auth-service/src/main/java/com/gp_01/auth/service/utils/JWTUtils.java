@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.PublicKey;
+import java.security.interfaces.RSAPrivateKey;
 import java.util.Date;
 import java.util.Map;
 
@@ -22,34 +24,28 @@ import java.util.Map;
 @Slf4j
 public class JWTUtils {
 
-    private final JWTProperties jwtProperties;
 
-    private SecretKey key;
+    private final RSAPrivateKey rsaPrivateKey;
 
-    @PostConstruct
-    public void init() {
-        this.key = Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
-    }
 
     public String createToken(Map<String, Object> claims, Long expire) {
 
         //计算过期时间
         long now = System.currentTimeMillis();
         Date expirationDate = new Date(now + expire * 1000);
-
         //创建token
         return Jwts.builder()
                 .claims(claims) //载荷
                 .expiration(expirationDate)   // 过期时间
-                .signWith(key)
+                .signWith(rsaPrivateKey, Jwts.SIG.RS256)
                 .compact();
     }
 
-    public Claims parseToken(String token) {
+    public Claims parseToken(String token, PublicKey publicKey) {
         Claims payload = null;
         try {
             payload = Jwts.parser()
-                    .verifyWith(key)
+                    .verifyWith(publicKey)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();

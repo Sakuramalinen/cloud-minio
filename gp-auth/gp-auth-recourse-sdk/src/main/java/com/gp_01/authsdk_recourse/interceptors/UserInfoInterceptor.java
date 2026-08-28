@@ -1,8 +1,8 @@
 package com.gp_01.authsdk_recourse.interceptors;
 
-import com.gp_01.common.constants.AuthConstants;
 import com.gp_01.common.context.UserContext;
 
+import com.gp_01.common.enums.RequestHeaderEnum;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +26,7 @@ public class UserInfoInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 
-        String authHeader = request.getHeader(AuthConstants.USER_INFO_HEADER);
+        String authHeader = request.getHeader(RequestHeaderEnum.LOGIN_AUTHORIZATION.getCustomHeaderName());
         if (authHeader == null) {
             return true;
         }

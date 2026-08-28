@@ -1,0 +1,19 @@
+Index: gp-auth/gp-auth-service/src/main/resources/application.yaml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>spring:\n  profiles:\n    active: local\n  application:\n    name: gp-auth-service\n\n\n\n# [local环境]\n---\nspring:\n  config:\n    activate:\n      on-profile: local\n  cloud:\n    nacos:\n      server-addr: localhost:8848\n      username: nacos\n      password: nacos\n      discovery:\n        namespace: 5e09156e-dc92-4641-8aba-bc14328befa8\n        group: gp-project\n  datasource:\n    driver-class-name: com.mysql.cj.jdbc.Driver\n    url: jdbc:mysql://localhost:3306/gp_auth\n    username: root\n    password: 3186255\n\nserver:\n  port: 8101\ngp:\n  auth:\n    resource:\n      exclude-path:\n        - \"/account/login\"\n        - \"/account/register\"\n    jwt:\n      expire: 172800 # 2天\n      secret: \"`1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./\"\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/gp-auth/gp-auth-service/src/main/resources/application.yaml b/gp-auth/gp-auth-service/src/main/resources/application.yaml
+--- a/gp-auth/gp-auth-service/src/main/resources/application.yaml	(revision bb26fdde3cd8c4a41638ca4e8d5b234abcf263dd)
++++ b/gp-auth/gp-auth-service/src/main/resources/application.yaml	(date 1787741274375)
+@@ -3,6 +3,8 @@
+     active: local
+   application:
+     name: gp-auth-service
++  config:
++    import: "optional:nacos"
+ 
+ 
+ 

@@ -2,7 +2,7 @@ spring:
   config:
     import:
       - "optional:nacos:shared-mybatis-plus-local.yaml?group=gp-project&namespace=5e09156e-dc92-4641-8aba-bc14328befa8&refreshEnabled=true"
-      - "optional:nacos:gp-user-service-local.yaml?group=gp-project&namespace=5e09156e-dc92-4641-8aba-bc14328befa8&refreshEnabled=true"
+      - "optional:nacos:gp-auth-service-local.yaml?group=gp-project&namespace=5e09156e-dc92-4641-8aba-bc14328befa8&refreshEnabled=true"
   profiles:
     active: local
   application:
@@ -19,7 +19,6 @@ spring:
       config:
         group: gp-project
         namespace: 5e09156e-dc92-4641-8aba-bc14328befa8
-
 
 server:
   port: 8101
