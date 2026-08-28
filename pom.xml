@@ -37,6 +37,7 @@
         <thumbnailator.version>0.4.21</thumbnailator.version>
         <jjwt.version>0.12.6</jjwt.version>
         <redisson-spring-boot-starter.verion>3.52.0</redisson-spring-boot-starter.verion>
+        <nimbus-jose-jwt.version>10.9.1</nimbus-jose-jwt.version>
     </properties>
 
     <dependencyManagement>
@@ -122,7 +123,13 @@
                 <artifactId>tika-core</artifactId>
                 <version>3.2.3</version>
             </dependency>
-
+            <!-- Source: https://mvnrepository.com/artifact/com.nimbusds/nimbus-jose-jwt -->
+            <dependency>
+                <groupId>com.nimbusds</groupId>
+                <artifactId>nimbus-jose-jwt</artifactId>
+                <version>${nimbus-jose-jwt.version}</version>
+                <scope>compile</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

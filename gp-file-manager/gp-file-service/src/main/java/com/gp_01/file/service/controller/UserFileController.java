@@ -112,9 +112,9 @@ public class UserFileController {
         return userFileService.listFileByTypeAndPage(params, type);
     }
     //TODO 未测试
-    @GetMapping("copy")
+    @PostMapping("copy")
     @Operation(summary = "复制文件或文件夹")
-    public Result<Void> copyFile(CopyFileDTO dto){
+    public Result<Void> copyFile(@RequestBody CopyFileDTO dto){
         userFileService.copyFile(dto);
         return Result.success();
     }

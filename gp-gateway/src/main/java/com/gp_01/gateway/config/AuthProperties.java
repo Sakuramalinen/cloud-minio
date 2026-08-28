@@ -31,4 +31,8 @@ public class AuthProperties implements InitializingBean {
         excludePath.add("/account/login");
         excludePath.add("/account/register");
     }
+
+
+
+
 }
