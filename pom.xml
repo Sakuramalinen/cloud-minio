@@ -35,7 +35,7 @@
         <swagger.version>4.6.0.2</swagger.version>
         <minio.version>9.0.3</minio.version>
         <thumbnailator.version>0.4.21</thumbnailator.version>
-        <jjwt.version>0.12.6</jjwt.version>
+        <jjwt.version>0.13.0</jjwt.version>
         <redisson-spring-boot-starter.verion>3.52.0</redisson-spring-boot-starter.verion>
         <nimbus-jose-jwt.version>10.9.1</nimbus-jose-jwt.version>
     </properties>

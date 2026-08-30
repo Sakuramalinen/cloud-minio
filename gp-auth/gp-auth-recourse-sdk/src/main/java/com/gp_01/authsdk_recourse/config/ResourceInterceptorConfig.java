@@ -1,6 +1,7 @@
 package com.gp_01.authsdk_recourse.config;
 
 import com.gp_01.authsdk_recourse.interceptors.LoginAuthInterceptor;
+import com.gp_01.authsdk_recourse.interceptors.UploadInfoInterceptor;
 import com.gp_01.authsdk_recourse.interceptors.UserInfoInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -20,6 +21,10 @@ public class ResourceInterceptorConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         //添加用户信息到ThreadLocal
         registry.addInterceptor(new UserInfoInterceptor()).order(0);
+        //增加上传信息拦截器
+        registry.addInterceptor(new UploadInfoInterceptor()).order(10);
+
+
         //判断是否需要做登录拦截
         if (!resourceAuthProperties.getEnable()) {
             return ;

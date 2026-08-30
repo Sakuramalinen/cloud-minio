@@ -17,6 +17,9 @@
         <option value="$PROJECT_DIR$/gp-file-manager/pom.xml" />
         <option value="$PROJECT_DIR$/gp-auth/go-auth-model/pom.xml" />
         <option value="$PROJECT_DIR$/gp-auth/gp-auth-model/pom.xml" />
+        <option value="$PROJECT_DIR$/gp-auth/gp-auth-file-sdk/pom.xml" />
+        <option value="$PROJECT_DIR$/gp-auth/gp-auth-encrypt-sdk/pom.xml" />
+        <option value="$PROJECT_DIR$/gp-file/pom.xml" />
       </list>
     </option>
     <option name="ignoredFiles">

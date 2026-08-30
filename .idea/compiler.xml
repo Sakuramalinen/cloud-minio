@@ -10,28 +10,29 @@
         <module name="gp-auth-recourse-sdk" />
         <module name="gp-user-api" />
         <module name="gp-auth-model" />
-        <module name="gp-file-model" />
         <module name="gp-user-model" />
         <module name="gp-user-service" />
-        <module name="gp-auth-gateway-sdk" />
         <module name="gp-file-service" />
+        <module name="gp-auth-decrypt-sdk" />
         <module name="gp-gateway" />
         <module name="gp-common" />
         <module name="gp-auth-service" />
         <module name="gp-file-api" />
+        <module name="gp-file-model" />
+        <module name="gp-auth-encrypt-sdk" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="gp-common-base" target="17" />
       <module name="gp-common-mybatis" target="17" />
-      <module name="gp-file" target="17" />
       <module name="gp-filemanage" target="17" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="gp-auth" options="" />
-      <module name="gp-auth-gateway-sdk" options="-parameters" />
+      <module name="gp-auth-decrypt-sdk" options="-parameters" />
+      <module name="gp-auth-encrypt-sdk" options="-parameters" />
       <module name="gp-auth-model" options="-parameters" />
       <module name="gp-auth-recourse-sdk" options="-parameters" />
       <module name="gp-auth-service" options="-parameters" />
