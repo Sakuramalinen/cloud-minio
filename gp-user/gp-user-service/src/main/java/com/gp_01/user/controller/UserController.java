@@ -29,8 +29,8 @@ public class UserController {
 
     @GetMapping("get")
     @Operation(summary = "获取用户信息")
-    public Result<User> getUserInfo(@NotNull @RequestParam("id") Long id){
-        User user = userService.getUserInfo(id);
+    public Result<User> getUserInfo(@NotNull @RequestParam("id") Long userId){
+        User user = userService.getUserInfo(userId);
         return Result.success(user);
     }
 
@@ -52,16 +52,11 @@ public class UserController {
     @PostMapping("store/increment")
     @Operation(summary = "增加已使用存储空间", description = "上传文件时 文件服务内部调用")
     public Result<Long> incrementUsedStoreSize(@RequestBody UpdateUsedStoreSizeDTO dto){
-        userService.incrementUsedStoreSize(dto.getFileSize());
+        userService.incrementUsedStoreSize(dto.getFileSize(),dto.getUserId());
         return Result.success();
     }
 
-    @PostMapping("store/minus")
-    @Operation(summary = "减少已使用存储空间", description = "删除文件时 文件服务内部调用")
-    public Result<Long> minusUsedStoreSize(UpdateUsedStoreSizeDTO dto){
-        userService.minusUsedStoreSize(dto.getFileSize());
-        return Result.success();
-    }
+
 
 
 

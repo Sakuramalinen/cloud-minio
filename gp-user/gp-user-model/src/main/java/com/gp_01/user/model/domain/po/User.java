@@ -49,6 +49,9 @@ public class User implements Serializable {
     @SchemaProperty(name = "已使用存储空间")
     private Long usedStoreSize;
 
+    @SchemaProperty(name = "用户文件根目录id")
+    private Long rootId;
+
     @SchemaProperty(name = "修改时间")
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;

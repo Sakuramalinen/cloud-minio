@@ -27,7 +27,5 @@ public interface UserClient {
      Result<Long> incrementUsedStoreSize(@RequestBody UpdateUsedStoreSizeDTO dto);
 
 
-    @PostMapping("/user/store/minus")
-    @Operation(summary = "减少已使用存储空间", description = "删除文件时 文件服务调用")
-     Result<Long> minusUsedStoreSize(@RequestBody UpdateUsedStoreSizeDTO dto);
+
 }

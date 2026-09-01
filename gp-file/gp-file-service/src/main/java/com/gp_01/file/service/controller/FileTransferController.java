@@ -43,7 +43,7 @@ public class FileTransferController {
     @Operation(summary = "上传成功", description = "分片合并，持久化")
     public Result<?> uploadComplete(@RequestBody UploadCompleteDTO dto){
         fileTransferService.uploadComplete(dto);
-        return null;
+        return Result.success();
     }
 
 
@@ -56,8 +56,8 @@ public class FileTransferController {
 
     @GetMapping("preview/file")
     @Operation(summary = "原文件预览", description = "支持大文件分流预览")
-    public Result<String> previewFile(@Valid @NotNull Long userFileId) {
-        String url = fileTransferService.previewFile(userFileId);
+    public Result<String> previewFile(@Valid @NotNull Long fileId) {
+        String url = fileTransferService.previewFile(fileId);
         return Result.success(url);
     }
 

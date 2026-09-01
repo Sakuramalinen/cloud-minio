@@ -25,6 +25,11 @@ public interface RabbitmqFileConstants {
     String ERROR_QUEUE_FILE = "error.queue.file";
     String ERROR_RK_FILE = "error.file";
 
+    //增加已使用空间大小
+    String QUEUE_INCREMENT_USE_RESTORE = "queue.file_incrementUseRestore";
+    String RK_INCREMENT_USE_RESTORE = "file.incrementUseRestore";
+
+
 
 
     

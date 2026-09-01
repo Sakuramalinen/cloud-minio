@@ -72,10 +72,10 @@ public class UserFileController {
         return userFileService.listFileByParentId(pageFilesQuery);
     }
 
-    @DeleteMapping("{id}")
+    @PostMapping("delete/batch")
     @Operation(summary = "删除文件或文件夹")
-    public Result<Void> deleteById(@PathVariable @NotNull Long id) {
-        userFileService.deleteById(id);
+    public Result<Void> deleteBatch(@RequestBody @NotNull List<Long> userFileIds) {
+        userFileService.deleteBatch(userFileIds);
         return Result.success();
     }
 
@@ -86,7 +86,7 @@ public class UserFileController {
         return userFileService.recyclePage(params);
     }
 
-    @PutMapping("restore/batch")
+    @PostMapping("restore/batch")
     @Operation(summary = "从回收站恢复文件")
     public Result<Void> restoreRecycleFile(@RequestBody @NotEmpty List<Long> ids) {
         userFileService.restoreFile(ids);
@@ -119,13 +119,7 @@ public class UserFileController {
     public PageResult<UserFile> listFileByTypeAndPage(@Valid PageParams params, @PathVariable("file-type") @NotNull Integer type) {
         return userFileService.listFileByTypeAndPage(params, type);
     }
-    //TODO 未测试
-    @PostMapping("copy")
-    @Operation(summary = "复制文件或文件夹")
-    public Result<Void> copyFile(@RequestBody CopyFileDTO dto){
-        userFileService.copyFile(dto);
-        return Result.success();
-    }
+
 
 
 

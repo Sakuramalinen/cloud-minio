@@ -3,6 +3,8 @@ package com.gp_01.user.service.impl;
 import com.gp_01.common.context.UserContext;
 import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.exception.BadRequestException;
+import com.gp_01.file.api.client.UserFileClient;
+import com.gp_01.file.model.domain.dto.userFile.CreateRootDTO;
 import com.gp_01.user.model.domain.po.User;
 import com.gp_01.user.mapper.UserMapper;
 import com.gp_01.user.service.IUserService;
@@ -24,6 +26,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
+
 
 
     @Override
@@ -51,28 +54,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         User user = new User();
         setUserDefault(user);
         super.save(user);
-
         return user;
     }
 
     @Override
-    public void incrementUsedStoreSize(Long size) {
+    public void incrementUsedStoreSize(Long size,Long userId) {
         if (size == null){
             throw new BadRequestException(ErrorCode.PARAM_ERROR);
         }
-        Long userId = UserContext.getUser();
-        super.lambdaUpdate().eq(User::getId, userId)
+        super.lambdaUpdate()
                 .setSql("used_store_size = greatest(used_store_size + {0}, 0)", size)
+                .eq(User::getId, userId)
                 .update();
     }
 
-    @Override
-    public void minusUsedStoreSize(Long size) {
-        Long userId = UserContext.getUser();
-        super.lambdaUpdate().eq(User::getId, userId)
-                .setSql("used_store_size = greatest(used_store_size - {0}, 0)", size)
-                .update();
-    }
+
 
     private void setUserDefault(User user){
         //TODO 默认昵称

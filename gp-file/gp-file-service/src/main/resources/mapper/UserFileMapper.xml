@@ -54,6 +54,41 @@
         and deleted = 0
         and file_name like concat(#{originalFileName}, '%')
     </select>
+    <select id="sumDirsSize" resultType="java.lang.Long" parameterType="com.gp_01.file.model.domain.po.UserFile">
+        with recursive tree as (select uf.id, uf.parent_id, uf.file_size
+                                from user_file uf
+                                where uf.id in
+                                <foreach collection="dirs" item="id" open="(" separator="," close=")">
+                                    #{id}
+                                </foreach>
+                                and uf.deleted = 0
+                                union all
+                                select uf.id, uf.parent_id, uf.file_size
+                                from tree t
+                                         inner join user_file uf on t.id = uf.parent_id where uf.deleted = 0)
+        select sum(tree.file_size)
+        from tree;
+
+
+    </select>
+    <select id="depthQueryByParentIdBatch" resultType="com.gp_01.file.model.domain.po.UserFile"
+            parameterType="java.lang.Long">
+        with recursive tree as (select uf.*
+        from user_file uf
+        where uf.user_id = #{userId}
+          and uf.deleted = 0
+            and uf.parent_id in
+        <foreach collection="dirs" item="parentId" open="(" separator="," close=")">
+            #{parentId}
+        </foreach>
+        union all
+        select uf.*
+        from tree t
+        inner join user_file uf on t.id = uf.parent_id and t.user_id = uf.user_id and uf.deleted = 0)
+        select tree.*
+        from tree;
+    </select>
+
 
 
 </mapper>

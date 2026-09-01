@@ -50,6 +50,7 @@ import java.security.interfaces.RSAPrivateKey;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -90,7 +91,6 @@ public class FileTransferServiceImpl implements IFileTransferService {
         if (task == null) {
             throw new BadRequestException(ErrorCode.PARAM_ERROR.getCode(), "上传任务不存在");
         }
-
 
 
         //秒传判断
@@ -178,7 +178,7 @@ public class FileTransferServiceImpl implements IFileTransferService {
         //删除上传任务
         uploadTaskRecordMapper.deleteById(taskId);
         //累加用户已使用空间
-        userClient.incrementUsedStoreSize(new UpdateUsedStoreSizeDTO(task.getFileSize()));
+        userClient.incrementUsedStoreSize(new UpdateUsedStoreSizeDTO(task.getFileSize(), userId));
         //文件后期处理
         UploadFilePostHandleDTO uploadFilePostHandleDTO = new UploadFilePostHandleDTO(task.getBucketName(), contentType, userFile.getFileName(), task.getObjectPath(), task.getFileMd5());
         rabbitTemplate.convertAndSend(RabbitmqFileConstants.EXCHANGE_TOPIC_FILE, RabbitmqFileConstants.RK_UPLOAD_POST_PROCESS, uploadFilePostHandleDTO);
@@ -233,60 +233,39 @@ public class FileTransferServiceImpl implements IFileTransferService {
 
 
     }
+
     //创建用户文件逻辑关系表
     private UserFile createUserFileTable(String fileName, Long parentId, FileStatus fileStatus, Long objectId) {
         Long userId = UserContext.getUser();
+
+        //获取当前目录下所有文件名
+        LambdaQueryWrapper<UserFile> queryWrapper = new LambdaQueryWrapper<UserFile>()
+                .eq(UserFile::getUserId, userId)
+                .eq(UserFile::getParentId, parentId)
+                .eq(UserFile::getDeleted, 0);
+        Set<String> fileNameSet = userFileMapper.selectList(queryWrapper)
+                .stream()
+                .map(UserFile::getFileName)
+                .collect(Collectors.toSet());
+
+        //获取完全文件名
+        String safeFileName = fileUtils.getSafeFileName(fileName, fileNameSet);
 
         //构建表数据
         UserFile userFile = new UserFile()
                 .setUserId(userId)
                 .setParentId(parentId)
                 .setObjectId(objectId)
-                .setFileName(fileName)
+                .setFileName(safeFileName)
                 .setFileSize(fileStatus.getSize())
-                .setIsDirectory(0)
+                .setIsDirectory(false)
                 .setMediaCategory(FileTypeEnum.getFileTypeEnum(fileStatus.getContentType()))
                 .setSort(0)
                 .setDeleted(0L);
 
-        //获取去除扩展名的文件名
-        int lastIndexOf = fileName.lastIndexOf(".");
-        String baseFileName = fileName;
-        String extendName = "";
-        if (lastIndexOf > 0) {
-            baseFileName = fileName.substring(0, lastIndexOf);
-            extendName = fileName.substring(lastIndexOf);
-        }
-
-        //统计同名文件数量
-        LambdaQueryWrapper<UserFile> likeWrapper = new LambdaQueryWrapper<UserFile>()
-                .eq(UserFile::getUserId, userId)
-                .eq(UserFile::getParentId, parentId)
-                .eq(UserFile::getDeleted, 0)
-                .likeRight(UserFile::getFileName, baseFileName);
-        Long count = userFileMapper.selectCount(likeWrapper);
-
-        //文件撞名重试
-        for (int i = 0; i <= 15; i++) {
-            try {
-                //构建安全文件名
-                String safeFileName;
-                if (count == 0) {
-                    safeFileName = fileName;
-                } else {
-                    safeFileName = baseFileName + "(" + count + ")" + extendName;
-                }
-                userFile.setFileName(safeFileName);
-                userFileMapper.insert(userFile);
-                return userFile;
-            } catch (DuplicateKeyException e) {
-                count++;
-            }
-        }
-        throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "文件名异常，重名上限");
+        userFileMapper.insert(userFile);
+        return userFile;
     }
-
-
 
 
     @Override
@@ -317,18 +296,21 @@ public class FileTransferServiceImpl implements IFileTransferService {
     }
 
 
-
     @Override
-    public String previewFile(Long userFileId) {
+    public String previewFile(Long fileId) {
         Long userId = UserContext.getUser();
-        LambdaQueryWrapper<UserFile> previewWrapper = new LambdaQueryWrapper<UserFile>().eq(UserFile::getId, userFileId).eq(UserFile::getUserId, userId)
+        //查文件物理表
+        FileObject fileObject = fileObjectMapper.selectById(fileId);
+        if (fileObject == null) {
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "数据不存在");
+        }
+        //查用户文件逻辑表
+        LambdaQueryWrapper<UserFile> previewWrapper = new LambdaQueryWrapper<UserFile>()
+                .eq(UserFile::getObjectId, fileId)
+                .eq(UserFile::getUserId, userId)
                 .eq(UserFile::getDeleted, 0);
         UserFile userFile = userFileMapper.selectOne(previewWrapper);
         if (userFile == null) {
-            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "数据不存在");
-        }
-        FileObject fileObject = fileObjectMapper.selectById(userFile.getObjectId());
-        if (fileObject == null) {
             throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "数据不存在");
         }
 
@@ -361,8 +343,10 @@ public class FileTransferServiceImpl implements IFileTransferService {
             PreviewImagesVO vo = new PreviewImagesVO();
             Long fileId = record.getObjectId();
             FileObject fileObject = fileObjectMap.get(fileId);
+
+            String thumbnailObjectPath = fileUtils.getThumbnailFileStorePath(fileObject.getFileMd5(), record.getFileName());
             //获取缩略图签名
-            String thumbnailUrl = previewer.previewPreSignUrl(oss.getBucketName(), fileObject.getObjectPath(), fileObject.getContentType(), 10, TimeUnit.MINUTES);
+            String thumbnailUrl = previewer.previewPreSignUrl(oss.getBucketName(), thumbnailObjectPath, fileObject.getContentType(), 10, TimeUnit.MINUTES);
             vo.setFileId(fileId);
             vo.setFileName(record.getFileName());
             vo.setFileSize(fileObject.getFileSize());
@@ -380,8 +364,7 @@ public class FileTransferServiceImpl implements IFileTransferService {
 
         boolean isImage = dto.getContentType().split("/")[0].equals("image");
 
-        String fileExtendName = fileUtils.getFileExtendName(dto.getFileName());
-        String thumbnailFileStorePath = fileUtils.getThumbnailFileStorePath(dto.getFileMd5(), fileExtendName);
+        String thumbnailFileStorePath = fileUtils.getThumbnailFileStorePath(dto.getFileMd5(), dto.getFileName());
         //TODO制作图片缩略图
         if (isImage) {
             InputStream inputStream = downloader.getDownloadInputStream(dto.getBucketName(), dto.getObjectPath());
@@ -396,7 +379,6 @@ public class FileTransferServiceImpl implements IFileTransferService {
         //TODO提取视频封面
 
     }
-
 
 
 }

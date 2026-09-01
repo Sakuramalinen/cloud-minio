@@ -53,7 +53,7 @@ public class UserFile implements Serializable {
     private Long fileSize;
 
     @SchemaProperty(name = "条目类型 1=文件夹 0=实体文件")
-    private Integer isDirectory;
+    private Boolean isDirectory;
 
     @SchemaProperty(name = "文件细分类型：1视频 2音频 3图片 4文本 5其他，文件夹为null")
     private FileTypeEnum mediaCategory;

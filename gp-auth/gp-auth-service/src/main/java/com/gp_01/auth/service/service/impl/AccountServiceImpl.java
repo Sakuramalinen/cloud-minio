@@ -15,6 +15,7 @@ import com.gp_01.auth.service.strategy.register.RegisterStrategyFactory;
 import com.gp_01.auth.encrypt_sdk.utils.EncryptUtils;
 import com.gp_01.file.model.domain.dto.userFile.CreateRootDTO;
 import com.gp_01.file.api.client.UserFileClient;
+import com.gp_01.user.api.client.UserClient;
 import lombok.RequiredArgsConstructor;
 
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +40,7 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
     private final LoginStrategyFactory loginStrategyFactory;
 
     private final RegisterStrategyFactory registerStrategyFactory;
-
+    
     private final UserFileClient userFileClient;
 
 
@@ -84,6 +85,7 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
 
         //存数据库
         super.save(account);
+
 
         //创建根目录
         userFileClient.createRoot(new CreateRootDTO(account.getUserId()));

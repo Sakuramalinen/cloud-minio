@@ -71,11 +71,14 @@ public class FileUtils {
      */
     public String[] splitFileNameAndSuffix(String fileName){
         int index = fileName.lastIndexOf('.');
+
         if(index <= 0){
             return new String[]{fileName, ""};
         }
+
         String name = fileName.substring(0, index);
         String suffix = fileName.substring(index);
+
         return new String[]{name, suffix};
     }
 
@@ -86,7 +89,7 @@ public class FileUtils {
      * @return
      */
     public String getSafeFileName(String fileName, Set<String> existFileNames){
-        if(!existFileNames.contains(fileName)){
+        if(existFileNames == null || !existFileNames.contains(fileName)){
             return fileName;
         }
         String[] split = splitFileNameAndSuffix(fileName);
@@ -129,12 +132,13 @@ public class FileUtils {
     /**
      * 获取缩略图存储路径
      * @param fileMd5
-     * @param extendName
+     * @param fileName
      * @return
      */
-    public String getThumbnailFileStorePath(String fileMd5, String extendName){
+    public String getThumbnailFileStorePath(String fileMd5, String fileName){
         String basePath = getBasePath(fileMd5);
-        return MinioConstants.THUMBNAIL_PATH_HEAD + "/" + basePath+ "/" + fileMd5 + extendName;
+        String fileExtendName = getFileExtendName(fileName);
+        return MinioConstants.THUMBNAIL_PATH_HEAD + "/" + basePath+ "/" + fileMd5 + fileExtendName;
     }
 
     /**

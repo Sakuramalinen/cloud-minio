@@ -2,17 +2,21 @@ package com.gp_01.file.service.service.impl;
 
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.gp_01.common.constants.RabbitMqConstants;
 import com.gp_01.common.context.UserContext;
+import com.gp_01.common.domain.Result;
 import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.common.utils.TimeUtils;
 import com.gp_01.file.model.domain.dto.*;
+import com.gp_01.file.model.domain.dto.taskRecord.listener.IncrementUseRestoreDTO;
 import com.gp_01.file.model.domain.po.UserFile;
 import com.gp_01.file.model.domain.query.PageFilesQuery;
 import com.gp_01.file.model.domain.vo.*;
 import com.gp_01.file.service.config.FileServiceProperties;
+import com.gp_01.file.service.constants.RabbitmqFileConstants;
 import com.gp_01.file.service.mapper.FileObjectMapper;
 import com.gp_01.file.service.mapper.UserFileMapper;
 import com.gp_01.file.service.service.IUserFileService;
@@ -20,8 +24,11 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gp_01.file.service.util.FileUtils;
 import com.gp_01.user.api.client.UserClient;
 import com.gp_01.user.model.domain.dto.UpdateUsedStoreSizeDTO;
+import com.gp_01.user.model.domain.po.User;
+import jodd.io.FileUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +38,8 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.gp_01.file.service.constants.RabbitmqFileConstants.*;
 
 /**
  * <p>
@@ -55,6 +64,8 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
 
     private final UserClient userClient;
 
+    private final RabbitTemplate rabbitTemplate;
+
 
     /**
      * 创建单层文件夹
@@ -72,7 +83,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         userFile.setUserId(userId);
         userFile.setParentId(dto.getParentId());
         userFile.setFileName(dto.getFileName());
-        userFile.setIsDirectory(1);
+        userFile.setIsDirectory(false);
 
         //保存到数据库
         super.save(userFile);
@@ -103,7 +114,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
             userFile.setUserId(userId);
             userFile.setParentId(parentId);
             userFile.setFileName(dirName);
-            userFile.setIsDirectory(1);
+            userFile.setIsDirectory(true);
 
             //保存到数据库
             super.save(userFile);
@@ -145,25 +156,31 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void deleteById(Long id) {
+    public void deleteBatch(List<Long> userFileIds) {
         Long userId = UserContext.getUser();
-        //查数据
-        UserFile one = lambdaQuery().eq(UserFile::getId, id).eq(UserFile::getUserId, userId).one();
-        if (one == null) {
-            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "该数据不存在");
-        }
-        Long timeStamp = Instant.now().toEpochMilli();
-
-        //逻辑删除
-        super.lambdaUpdate()
-                .eq(UserFile::getId, id)
+        //查询所有数据
+        List<UserFile> readyLogicDeleteList = super.lambdaQuery()
                 .eq(UserFile::getUserId, userId)
-                .set(UserFile::getDeleted, timeStamp)
-                .update();
+                .in(UserFile::getId, userFileIds)
+                .eq(UserFile::getDeleted, 0)
+                .list();
 
-        //减少已使用空间大小
-        userClient.minusUsedStoreSize(new UpdateUsedStoreSizeDTO(one.getFileSize()));
 
+        //标识删除
+        long epochMilli = Instant.now().toEpochMilli();
+        for (UserFile userFile : readyLogicDeleteList) {
+            userFile.setDeleted(epochMilli);
+        }
+
+        //修改数据
+        super.updateBatchById(readyLogicDeleteList);
+
+        //异步减少已使用空间大小
+        IncrementUseRestoreDTO incrementUseRestoreDTO = new IncrementUseRestoreDTO();
+        incrementUseRestoreDTO.setUserFiles(readyLogicDeleteList);
+        incrementUseRestoreDTO.setIsAdd(false);
+        incrementUseRestoreDTO.setUserId(userId);
+        rabbitTemplate.convertAndSend(EXCHANGE_TOPIC_FILE, RK_INCREMENT_USE_RESTORE, incrementUseRestoreDTO);
 
     }
 
@@ -175,7 +192,6 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
                 .eq(UserFile::getUserId, userId)
                 .eq(UserFile::getDeleted, 0)
                 .eq(UserFile::getParentId, query.getParentId())
-                .ne(UserFile::getId,0)
                 .orderByDesc(UserFile::getIsDirectory);
         if (query.getSortBy() != null) {
             userFileWrapper
@@ -225,46 +241,96 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void restoreFile(List<Long> ids) {
+
         Long userId = UserContext.getUser();
-        //查数据库获取所有将要恢复的文件信息
-        List<UserFile> userFileList = lambdaQuery()
+
+        //查数据库获取所有外层将要恢复的文件
+        List<UserFile> readyRestoreFileList = lambdaQuery()
                 .eq(UserFile::getUserId, userId)
                 .in(UserFile::getId, ids)
+                .ne(UserFile::getDeleted, 0)
                 .list();
-        if (userFileList.isEmpty()) {
+        if (readyRestoreFileList.isEmpty()) {
             return;
         }
-        //同一个目录下的文件进行分组
-        Map<Long, List<UserFile>> userFileGroupMap = userFileList
+
+        //查找根目录
+        UserFile root = super.lambdaQuery()
+                .eq(UserFile::getUserId, userId)
+                .eq(UserFile::getDeleted, 0)
+                .in(UserFile::getParentId, -1).one();
+
+        //查询所有要恢复的文件或文件夹的目录内所有文件
+        List<Long> parentIds = new ArrayList<>();
+        parentIds.add(root.getId());
+        for (UserFile userFile : readyRestoreFileList) {
+            parentIds.add(userFile.getParentId());
+        }
+
+        //查找相同层级下所有文件
+        List<UserFile> sameLevelFileList = super.lambdaQuery()
+                .eq(UserFile::getUserId, userId)
+                .eq(UserFile::getDeleted, 0)
+                .in(UserFile::getParentId, parentIds)
+                .list();
+
+        //将所有文件按照父目录id分组
+        Map<Long, Set<String>> sameLevelFileMap = new HashMap<>();
+        for (UserFile userFile : sameLevelFileList) {
+            Set<String> fileNames = sameLevelFileMap.getOrDefault(userFile.getParentId(), new HashSet<>());
+            fileNames.add(userFile.getFileName());
+            sameLevelFileMap.put(userFile.getParentId(), fileNames);
+        }
+
+        //获取要恢复的外层文件的安全文件名
+        for (UserFile userFile : readyRestoreFileList) {
+            Long parentId = userFile.getParentId();
+            Set<String> fileNames = sameLevelFileMap.get(parentId);
+            String safeFileName = fileUtils.getSafeFileName(userFile.getFileName(), fileNames);
+            userFile.setFileName(safeFileName);
+            userFile.setDeleted(0L);
+        }
+
+        //查找恢复文件的父目录是否存在
+        Map<Long, UserFile> fatherFileMap = super.lambdaQuery()
+                .eq(UserFile::getUserId, userId)
+                .eq(UserFile::getDeleted, 0)
+                .in(UserFile::getId, parentIds)
+                .list()
                 .stream()
-                .collect(Collectors.groupingBy(UserFile::getParentId));
+                .collect(Collectors.toMap(UserFile::getId, uf -> uf));
 
-        for (Map.Entry<Long, List<UserFile>> entry : userFileGroupMap.entrySet()) {
-            Long parentId = entry.getKey();
-            List<UserFile> userFiles = entry.getValue();
-            //按照每个目录进行查数据库获取目录下未删除文件名
-            Set<String> fileNames = lambdaQuery()
-                    .eq(UserFile::getUserId, userId)
-                    .eq(UserFile::getParentId, parentId)
-                    .eq(UserFile::getDeleted, 0L)
-                    .list()
-                    .stream()
-                    .map(UserFile::getFileName)
-                    .collect(Collectors.toSet());
-            //给当下每个文件进行重新创建安全文件名
-            for (UserFile userFile : userFiles) {
+
+        //将父目录不存在替换为根目录
+        for (UserFile userFile : readyRestoreFileList) {
+            Long parentId = userFile.getParentId();
+            UserFile father = fatherFileMap.get(parentId);
+            if(father == null){
+                //父目录不存在，重定向到根目录
+                //获取安全名
+                Set<String> fileNames = sameLevelFileMap.get(root.getId());
+                if(fileNames == null) fileNames = new HashSet<>();
                 String safeFileName = fileUtils.getSafeFileName(userFile.getFileName(), fileNames);
-                fileNames.add(safeFileName);
+                userFile.setParentId(root.getId());
                 userFile.setFileName(safeFileName);
-                userFile.setDeleted(0L);
-
+                fileNames.add(safeFileName);
             }
         }
-        //统一修改数据库
-        updateBatchById(userFileList);
+
+        //恢复所有文件
+        super.updateBatchById(readyRestoreFileList);
+
+        //异步增加已使用空间
+        IncrementUseRestoreDTO incrementUseRestoreDTO = new IncrementUseRestoreDTO();
+        incrementUseRestoreDTO.setUserFiles(readyRestoreFileList);
+        incrementUseRestoreDTO.setIsAdd(true);
+        incrementUseRestoreDTO.setUserId(userId);
+
+        rabbitTemplate.convertAndSend(EXCHANGE_TOPIC_FILE, RK_INCREMENT_USE_RESTORE, incrementUseRestoreDTO);
     }
 
 
+    //TODO 逻辑删除后依旧显示
     @Override
     public PageResult<UserFile> listFileByTypeAndPage(PageParams params, Integer type) {
         //获取登录用户
@@ -312,7 +378,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
                 .eq(UserFile::getParentId, parentId)
                 .eq(UserFile::getDeleted, 0)
                 .eq(UserFile::getIsDirectory, 1)
-                .ne(UserFile::getId,0)
+                .ne(UserFile::getId, 0)
                 .list();
         if (list == null) {
             return List.of();
@@ -334,7 +400,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         List<Long> dirIds = new ArrayList<>();
         List<Long> fileIds = new ArrayList<>();
         for (UserFile userFile : list) {
-            if (userFile.getIsDirectory() == 1) {
+            if (userFile.getIsDirectory()) {
                 dirIds.add(userFile.getId());
             } else {
                 fileIds.add(userFile.getObjectId());
@@ -345,12 +411,12 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         if (!dirIds.isEmpty()) {
             files = userFileMapper.listFilesByDirIds(dirIds);
             for (UserFile file : files) {
-                if (file.getIsDirectory() == 0) {
+                if (!file.getIsDirectory()) {
                     fileIds.add(file.getObjectId());
                 }
             }
         }
-        if(!fileIds.isEmpty()){
+        if (!fileIds.isEmpty()) {
             //将该文件引用数-1
             fileObjectMapper.minusRefCountBatch(fileIds);
         }
@@ -364,33 +430,6 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         super.removeBatchByIds(deleteIds);
     }
 
-    @Override
-    public void copyFile(CopyFileDTO dto) {
-        Long userId = UserContext.getUser();
-        Map<Long, UserFile> userFileMap = super.lambdaQuery()
-                .eq(UserFile::getUserId, userId)
-                .in(UserFile::getId, List.of(dto.getOriginalId(), dto.getTargetId()))
-                .eq(UserFile::getDeleted, 0)
-                .list().stream().collect(Collectors.toMap(UserFile::getId, uf -> uf));
-        if(userFileMap.size() < 2){
-            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "暂无权限访问");
-        }
-
-        //查找目标目录下是否有相同名字文件
-        UserFile one = fileExist(userId, dto.getTargetId(), userFileMap.get(dto.getOriginalId()).getFileName());
-        if(one != null){
-            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "目标目录下存在同名文件，复制失败");
-        }
-        //修改
-        UserFile userFile = new UserFile();
-        BeanUtils.copyProperties(userFileMap.get(dto.getOriginalId()),userFile);
-        userFile.setParentId(dto.getTargetId());
-        super.save(userFile);
-        //TODO 增加使用空间
-        userClient.incrementUsedStoreSize(new UpdateUsedStoreSizeDTO(userFileMap.get(dto.getOriginalId()).getFileSize()));
-
-
-    }
 
     @Override
     public Long createRoot(Long userId) {
@@ -398,7 +437,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
                 .setUserId(userId)
                 .setParentId(-1L)
                 .setFileName("root")
-                .setIsDirectory(1);
+                .setIsDirectory(true);
         super.save(root);
         return root.getId();
     }
@@ -414,5 +453,46 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
                 .eq(UserFile::getFileName, fileName)
                 .eq(UserFile::getDeleted, 0)
                 .one();
+    }
+    @Override
+    public void asyncIncrementUseRestore(Collection<UserFile> userFiles,Long userId, boolean isAdd){
+        //区分文件和文件夹
+        List<UserFile> files = new ArrayList<>();
+        List<UserFile> dirs = new ArrayList<>();
+        for (UserFile userFile : userFiles) {
+            if (userFile.getIsDirectory()) {
+                dirs.add(userFile);
+            } else {
+                files.add(userFile);
+            }
+        }
+
+        Map<Long, UserFile> userFileMap = new HashMap<>();
+
+        if(!files.isEmpty()){
+            for (UserFile file : files) {
+                userFileMap.put(file.getId(), file);
+            }
+        }
+
+        //统计文件夹内所有文件总大小
+        if(!dirs.isEmpty()){
+            List<Long> parentIds = dirs.stream().map(UserFile::getId).toList();
+            List<UserFile> userFileList = userFileMapper.depthQueryByParentIdBatch(parentIds,userId);
+            for (UserFile userFile : userFileList) {
+                userFileMap.put(userFile.getId(), userFile);
+            }
+        }
+
+        //统计总大小
+        long sum = 0;
+        for (Map.Entry<Long, UserFile> entry : userFileMap.entrySet()) {
+            sum += entry.getValue().getFileSize();
+        }
+        //判断加减
+        if(!isAdd){
+            sum = -sum;
+        }
+        userClient.incrementUsedStoreSize(new UpdateUsedStoreSizeDTO(sum, userId));
     }
 }

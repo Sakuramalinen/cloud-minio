@@ -8,7 +8,9 @@ import com.gp_01.file.model.domain.po.UserFile;
 import com.gp_01.file.model.domain.query.PageFilesQuery;
 import com.gp_01.file.model.domain.vo.*;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 /**
  * <p>
@@ -26,7 +28,7 @@ public interface IUserFileService extends IService<UserFile> {
     Long makeMultiDir(MakeMultiDirDTO dto);
     void reName(Long id, String fileName);
 
-    void deleteById(Long id);
+    void deleteBatch(List<Long> userFileIds);
 
     PageResult<UserFile> listFileByParentId(PageFilesQuery pageFilesQuery);
 
@@ -56,7 +58,7 @@ public interface IUserFileService extends IService<UserFile> {
      */
     void deleteRecycleFileBatch(List<Long> ids);
 
-    void copyFile(CopyFileDTO dto);
-
     Long createRoot(Long userId);
+
+    void asyncIncrementUseRestore(Collection<UserFile> userFiles,Long userId, boolean isAdd);
 }

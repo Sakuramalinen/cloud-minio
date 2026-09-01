@@ -21,7 +21,6 @@ public interface IUserService extends IService<User> {
 
     User createUser();
 
-    void incrementUsedStoreSize(Long size);
+    void incrementUsedStoreSize(Long size,Long UserId);
 
-    void minusUsedStoreSize(Long size);
 }

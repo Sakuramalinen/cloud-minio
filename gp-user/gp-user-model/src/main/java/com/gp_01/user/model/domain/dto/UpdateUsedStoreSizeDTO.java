@@ -7,4 +7,5 @@ import lombok.Data;
 @AllArgsConstructor
 public class UpdateUsedStoreSizeDTO {
     private Long fileSize;
+    private Long userId;
 }
