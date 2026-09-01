@@ -12,5 +12,8 @@
 *.jar
 *.war
 *.ear
+/docs
+.claude
+
 
 
