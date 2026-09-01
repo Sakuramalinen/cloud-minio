@@ -10,7 +10,7 @@ import org.springframework.core.env.ConfigurableEnvironment;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 @SpringBootApplication
-@EnableFeignClients(value = {"com.gp_01.user.api.client"})
+@EnableFeignClients(value = {"com.gp_01.user.api.client", "com.gp_01.file.api.client"})
 @Slf4j
 public class GpAuthApplication {
 

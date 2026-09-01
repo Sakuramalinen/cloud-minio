@@ -1,9 +1,7 @@
 package com.gp_01.gateway.handler.impl;
 
-import com.gp_01.authsdk_gateway.utils.AuthUtil;
+import com.gp_01.auth.decrypt_sdk.utils.DecryptUtils;
 import com.gp_01.common.enums.RequestHeaderEnum;
-import com.gp_01.common.utils.RSAUtils;
-import com.gp_01.gateway.config.PublicKeyProperties;
 import com.gp_01.gateway.domain.RequestHeaderParseResult;
 import com.gp_01.gateway.domain.ResultEnums;
 import com.gp_01.gateway.handler.RequestHeaderHandler;
@@ -19,40 +17,35 @@ import java.util.HashMap;
 @RequiredArgsConstructor
 public class LoginRequestHeaderHandler implements RequestHeaderHandler {
 
-    private final AuthUtil authUtil;
-
-    private final PublicKeyProperties publicKeyProperties;
-
+    private final DecryptUtils decryptUtils;
 
     @Override
     public RequestHeaderParseResult handle(HttpHeaders headers) {
 
-
-
         //获取token
         String token = headers.getFirst(RequestHeaderEnum.LOGIN_AUTHORIZATION.getRequestHeaderName());
-        RequestHeaderParseResult result = new RequestHeaderParseResult();
 
         //不包含直接跳过
         if (token == null) {
-            result.setResultEnums(ResultEnums.SKIP);
-            return result;
+            return new RequestHeaderParseResult(ResultEnums.SKIP);
+        }
+        try{
+            //TODO temp
+            token = token.split(" ")[1];
+
+            //获取公钥
+            String publicKey = decryptUtils.getPublicKeys().get("login");
+            RSAPublicKey rsaPublicKey = decryptUtils.readPublicKey(publicKey);
+
+            //解析token
+            Claims claims = decryptUtils.JwtDecrypt(token, rsaPublicKey);
+            Long userId = claims.get("userId", Long.class);
+
+            return new RequestHeaderParseResult(RequestHeaderEnum.LOGIN_AUTHORIZATION.getCustomHeaderName(), userId);
+        }catch (Exception e){
+            return new RequestHeaderParseResult(ResultEnums.ERROR);
         }
 
-        //TODO temp
-        token = token.split(" ")[1];
-
-        RSAPublicKey rsaPublicKey = RSAUtils.readPublicKey(publicKeyProperties.getLoginPublicKey());
-
-        //解析token
-        Claims claims = authUtil.parseToken(token, rsaPublicKey);
-
-        long userId = Long.parseLong(claims.get("userId").toString());
-        HashMap<String, String> map = new HashMap<>();
-        map.put(RequestHeaderEnum.LOGIN_AUTHORIZATION.getCustomHeaderName(), String.valueOf(userId));
-        result.setHeaders(map);
-        result.setResultEnums(ResultEnums.SUCCESS);
-        return result;
     }
 
     @Override

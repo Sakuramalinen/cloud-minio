@@ -18,7 +18,7 @@
         </dependency>
         <dependency>
             <groupId>com.shenyongqi.gp</groupId>
-            <artifactId>gp-auth-gateway-sdk</artifactId>
+            <artifactId>gp-auth-decrypt-sdk</artifactId>
             <version>0.0.1</version>
         </dependency>
 

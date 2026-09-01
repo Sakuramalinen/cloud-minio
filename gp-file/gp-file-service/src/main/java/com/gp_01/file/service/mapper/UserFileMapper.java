@@ -1,0 +1,75 @@
+package com.gp_01.file.service.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.gp_01.file.model.domain.po.UserFile;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
+
+/**
+ * <p>
+ * 用户逻辑文件表 Mapper 接口
+ * </p>
+ *
+ * @author employee_01
+ * @since 2026-05-08
+ */
+public interface UserFileMapper extends BaseMapper<UserFile> {
+
+
+    /**
+     * 批量查询回收站中文件夹下所有文件id
+     *
+     * @param dirIds
+     * @return id, fileId, fileType
+     */
+    List<UserFile> listFilesByDirIds(@Param("dirIds") List<Long> dirIds);
+
+    /**
+     * 文件列表分页查询
+     * @param page
+     * @param query
+     * @param userId
+     * @return
+     */
+//    Page<UserFile> listFileByPage(Page<UserFile> page, @Param("query")PageFilesQuery query, @Param("userId") Long userId);
+
+    /**
+     * 查询一个目录中是否有同名文件
+     *
+     * @param id
+     * @param userId
+     * @param targetId
+     * @return
+     */
+    Integer existsSameFileName(Long id, Long userId, Long targetId);
+
+
+    /**
+     * 统计同目录下相同文件名数量
+     *
+     * @param originalFileName
+     * @param userId
+     * @param parentId
+     * @return
+     */
+    Long countLikeFileName(String originalFileName, Long userId, Long parentId);
+
+    /**
+     * 统计所有文件夹下文件总大小
+     *
+     * @param dirs
+     * @return
+     */
+    Long sumDirsSize(List<UserFile> dirs);
+
+    /**
+     * 深度查询父级目录下所有文件或文件夹
+     *
+     * @param parentIds
+     * @return
+     */
+    List<UserFile> depthQueryByParentIdBatch(@Param("parentIds")List<Long> parentIds, @Param("userId") Long userId);
+
+
+}

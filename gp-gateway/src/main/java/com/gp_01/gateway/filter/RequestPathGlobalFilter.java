@@ -1,6 +1,5 @@
 package com.gp_01.gateway.filter;
 
-import com.gp_01.authsdk_gateway.utils.AuthUtil;
 import com.gp_01.gateway.config.AuthProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;

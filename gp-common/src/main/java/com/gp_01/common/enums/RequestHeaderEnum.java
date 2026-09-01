@@ -7,7 +7,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum RequestHeaderEnum {
     LOGIN_AUTHORIZATION("Authorization", "user-info"),
-    OSS_AUTHORIZATION("OSS", "oss");
+    UPLOAD_AUTHORIZATION("upload-Authorization", "upload-info");
+
 
 
     //解析前的请求头
