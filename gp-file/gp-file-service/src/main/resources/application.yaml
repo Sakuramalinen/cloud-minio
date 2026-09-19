@@ -22,8 +22,16 @@ spring:
         group: gp-project
         namespace: 5e09156e-dc92-4641-8aba-bc14328befa8
 
+
 server:
   port: 8102
-
+gp:
+  xxl-job:
+    admin-address: http://192.168.64.2:9099/xxl-job-admin
+    app-name: file-executor
+    port: 9090
+    access-token: w5UcpZUOXqYFsZCYly532eS6qawVHxAA
+    log-path: src/main/resources/xxl-log
+    log-retention-day: 30
 
 

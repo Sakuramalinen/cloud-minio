@@ -8,8 +8,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 @Data
 @Slf4j
-//@Configuration
-//@ConfigurationProperties(prefix = "gp.xxl-job")
+@Configuration
+@ConfigurationProperties(prefix = "gp.xxl-job")
 public class XxlJobConfig {
 
     private String adminAddress;

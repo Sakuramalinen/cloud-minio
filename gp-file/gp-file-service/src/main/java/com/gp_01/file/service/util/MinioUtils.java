@@ -100,65 +100,7 @@ public class MinioUtils {
         }
     }
 
-    /**
-     * 获取文件ETAG
-     *
-     * @param bucketName
-     * @param objectPath
-     * @return
-     */
-    public String getFielETag(String bucketName, String objectPath) {
-        StatObjectArgs args = StatObjectArgs.builder()
-                .bucket(bucketName)
-                .object(objectPath)
-                .build();
-        try {
-            StatObjectResponse response = minioClient.statObject(args);
-            return response.etag();
-        } catch (MinioException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
-    /**
-     * 批量获取临时签名url
-     *
-     * @param path
-     * @param expireMinute
-     * @return
-     */
-    public String getTempSignedUrl(String path, int expireMinute) {
-        try {
-            return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
-                    .method(GET)
-                    .bucket(oss.getBucketName())
-                    .object(path)
-                    .expiry(expireMinute, TimeUnit.MINUTES)
-                    .build());
-        } catch (Exception e) {
-            log.error("获取临时签名错误: 存储路径：{} -> ", path, e);
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * 清理上传中断分片文件
-     *
-     * @param bucketName
-     * @param objectPath
-     * @param uploadId
-     */
-    public void abortInCompleteMultipartUpload(String bucketName, String objectPath, String uploadId) {
-        AbortMultipartUploadArgs args = AbortMultipartUploadArgs.builder()
-                .bucket(bucketName)
-                .object(objectPath)
-                .uploadId(uploadId).build();
-        minioAsyncClient.abortMultipartUpload(args).whenComplete((abortMultipartUploadResponse, throwable) -> {
-            if (throwable != null) {
-                log.error("清理中断分片文件bucket={} object={} uploadId={}", bucketName, objectPath, uploadId);
-            }
-        });
-    }
 
     /**
      * 获取文件状态

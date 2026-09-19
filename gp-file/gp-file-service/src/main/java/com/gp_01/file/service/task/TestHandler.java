@@ -1,4 +1,4 @@
-package com.gp_01.file.service.job;
+package com.gp_01.file.service.task;
 
 import com.xxl.job.core.handler.annotation.XxlJob;
 import lombok.extern.slf4j.Slf4j;
