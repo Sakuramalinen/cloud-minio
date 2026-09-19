@@ -7,7 +7,7 @@ spring:
     name: gp-gateway-service
   cloud:
     nacos:
-      server-addr: localhost:8848
+      server-addr: 192.168.64.2:8848
       username: nacos
       password: nacos
       config:
@@ -18,8 +18,12 @@ spring:
         group: gp-project
         namespace: 5e09156e-dc92-4641-8aba-bc14328befa8
 
+
 server:
   port: 8100
+gp:
+  auth:
+    exclude-path:
 
 
 

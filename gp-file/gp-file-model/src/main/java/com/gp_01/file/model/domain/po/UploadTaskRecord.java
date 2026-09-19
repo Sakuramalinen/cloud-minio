@@ -36,8 +36,8 @@ public class UploadTaskRecord implements Serializable {
     @SchemaProperty(name = "父级目录")
     private Long parentId;
 
-    @SchemaProperty(name = "文件的唯一标识(MD5)")
-    private String fileMd5;
+//    @SchemaProperty(name = "文件的唯一标识(MD5)")
+//    private String fileMd5;
 
     @SchemaProperty(name = "文件名")
     private String fileName;

@@ -1,10 +1,12 @@
 package com.gp_01.user.service.impl;
 
 import com.gp_01.common.context.UserContext;
+import com.gp_01.common.domain.Result;
 import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.file.api.client.UserFileClient;
 import com.gp_01.file.model.domain.dto.userFile.CreateRootDTO;
+import com.gp_01.user.config.UserConfig;
 import com.gp_01.user.model.domain.po.User;
 import com.gp_01.user.mapper.UserMapper;
 import com.gp_01.user.service.IUserService;
@@ -28,6 +30,9 @@ import java.util.UUID;
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IUserService {
 
 
+    private final UserFileClient userFileClient;
+
+    private final UserConfig userConfig;
 
     @Override
     public User getUserInfo(Long accountId) {
@@ -53,7 +58,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
         User user = new User();
         setUserDefault(user);
+
         super.save(user);
+        //创建根目录
+        Result<Long> root = userFileClient.createRoot(new CreateRootDTO(user.getId()));
+        user.setRootId(root.getData());
+        updateById(user);
         return user;
     }
 
@@ -76,7 +86,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         LocalDateTime vipExpireTime = LocalDateTime.of(1900, 1,1,0,0);
 
         user.setNickname(nickname);
-        user.setTotalStoreSize(10L * 1024 * 1024);
+        //默认空间大小
+        user.setTotalStoreSize(userConfig.getDefaultUserStore());
         user.setUsedStoreSize(0L);
         user.setVipExpireTime(vipExpireTime);
         user.setAvatarId(0L);

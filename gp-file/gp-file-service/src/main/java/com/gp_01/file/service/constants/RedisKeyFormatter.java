@@ -9,31 +9,42 @@ import java.util.Formatter;
 @Component
 public class RedisKeyFormatter {
 
-    private static final String CHUNK_UPLOAD_INFO_FORMAT ="gb_01:file-service:upload-file:%d:%d";
+    private static final String CHUNK_UPLOAD_INFO_FORMAT ="gp_01:file-service:upload-file:%d:%s";
     private static final String CHUNK_UPLOAD_PROGRESS_INFO_FORMAT = "gb_01:file-service:upload-progress:%d:%d";
     private static final String UPLOAD_AVATAR_INFO_FORMAT = "gp_01:file-service:upload-avatar:%d";
+    private static final String UPLOAD_PROGRESS_INFO_FORMAT = "gp_01:file-service:upload-progress:%d:%s";
 
     /**
      * 获取文件上传信息缓存key
-     * @param userId
-     * @param taskId
-     * @return
+     * @param userId 用户id
+     * @param uploadId 任务id
+     * @return key
      */
-    public static String fileUploadInfoKey(Long userId, Long taskId){
-        return String.format(CHUNK_UPLOAD_INFO_FORMAT, userId, taskId);
+    public static String fileUploadInfoKey(Long userId, String uploadId){
+        return String.format(CHUNK_UPLOAD_INFO_FORMAT, userId, uploadId);
     }
 
     /**
      * 获取分片上传进度信息缓存key
-     * @param userId
-     * @param taskId
-     * @return
+     * @param userId 用户id
+     * @param taskId 任务id
+     * @return keu
      */
-    public static String chunkUploadProgressInfoKey(Long userId, Long taskId){
-        return String.format(CHUNK_UPLOAD_PROGRESS_INFO_FORMAT, userId, taskId);
-    }
+//    public static String chunkUploadProgressInfoKey(Long userId, Long taskId){
+//        return String.format(CHUNK_UPLOAD_PROGRESS_INFO_FORMAT, userId, taskId);
+//    }
 
     public static String UploadAvatarInfoKey(Long userId){
         return String.format(UPLOAD_AVATAR_INFO_FORMAT, userId);
     }
+
+    /**
+     * 分片上传进度信息key
+     * @param userId 用户id
+     * @param uploadId 上传id
+     * @return key
+     */
+//    public static String UploadProgressInfoKey(Long userId, String uploadId){
+//        return String.format(UPLOAD_PROGRESS_INFO_FORMAT, userId, uploadId);
+//    }
 }

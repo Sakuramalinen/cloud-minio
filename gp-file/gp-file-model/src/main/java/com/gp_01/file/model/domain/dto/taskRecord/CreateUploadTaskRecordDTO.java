@@ -8,5 +8,4 @@ public class CreateUploadTaskRecordDTO {
     private Long parentId;
     private Long fileSize;
     private String fileName;
-    private String fileMd5;
 }

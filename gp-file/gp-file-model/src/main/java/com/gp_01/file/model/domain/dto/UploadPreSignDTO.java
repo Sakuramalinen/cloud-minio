@@ -7,6 +7,7 @@ import java.util.List;
 
 @Data
 public class UploadPreSignDTO {
+
     //是否分片上传
     @NotNull
     private Boolean IsChunked;

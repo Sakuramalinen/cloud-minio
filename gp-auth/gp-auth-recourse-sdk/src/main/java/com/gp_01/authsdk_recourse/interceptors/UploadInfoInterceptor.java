@@ -10,12 +10,12 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.stereotype.Component;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.servlet.HandlerInterceptor;
-@Component
+//@Component
 public class UploadInfoInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 
-        String header = request.getHeader(RequestHeaderEnum.UPLOAD_AUTHORIZATION.getCustomHeaderName());
+        String header = request.getHeader(RequestHeaderEnum.UPLOAD_AUTHORIZATION.getRequestHeaderName());
 
         if(header != null){
             //解析json

@@ -7,8 +7,10 @@ import com.gp_01.file.model.domain.dto.UploadProgressSaveDTO;
 import com.gp_01.file.model.domain.po.UploadTaskRecord;
 import com.gp_01.file.model.domain.po.UserFile;
 import com.gp_01.file.service.constants.RabbitmqFileConstants;
+import com.gp_01.file.service.constants.RedisKeyFormatter;
 import com.gp_01.file.service.mapper.UploadTaskRecordMapper;
 import com.gp_01.file.service.util.MinioUtils;
+import com.gp_01.file.service.util.RedisUtils;
 import io.minio.ListPartsArgs;
 import io.minio.MinioAsyncClient;
 import io.minio.ObjectArgs;
@@ -20,11 +22,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Formatter;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 @SpringBootTest
 class GpFileServiceApplicationTests {
@@ -117,6 +117,26 @@ class GpFileServiceApplicationTests {
 
         System.out.println(originalFileName);
 
+    }
+
+    @Autowired
+    RedisUtils redisUtils;
+
+    @Test
+    public void redisTest(){
+        String key = RedisKeyFormatter.UploadProgressInfoKey(101L, "qwer");
+        String kk = "gp_01:file-service:upload-progress:2101132743180881922:NDRmNDE2NGYtYzhkNS00M2M5LThmMDgtZmY2ZDExODkzYTU4LjAzY2Q5NDJmLTJmNjAtNDYzMC05ODVhLWY4ZTJlNzFjY2I1YXgxNzg5NzkxMzgxMjgzNDA0NjIy";
+        redisUtils.setBitMapAndExpire(key, 3 - 1L, true, 60 * 60L *12L);
+    }
+
+    @Test
+    public void redisTest1(){
+        String key = RedisKeyFormatter.UploadProgressInfoKey(101L, "qwer");
+        String kk = "gp_01:file-service:upload-progress:2101132743180881922:NDRmNDE2NGYtYzhkNS00M2M5LThmMDgtZmY2ZDExODkzYTU4LjAzY2Q5NDJmLTJmNjAtNDYzMC05ODVhLWY4ZTJlNzFjY2I1YXgxNzg5NzkxMzgxMjgzNDA0NjIy";
+
+            String s = redisUtils.getAllBitMapAndExpire(kk, 30L, 1L, TimeUnit.DAYS);
+
+        System.out.println(s);
     }
 
 }

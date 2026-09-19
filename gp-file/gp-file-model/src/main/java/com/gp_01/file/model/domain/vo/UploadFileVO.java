@@ -8,20 +8,20 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class UploadFileVO {
 
-    @SchemaProperty(name = "是否秒传成功")
-    private Boolean isInstantUpload;
 
+    @SchemaProperty(name = "上传id")
+    private String uploadId;
 
-    @SchemaProperty(name = "上传授权token")
-    private String token;
+    @SchemaProperty(name = "是否分片")
+    private Boolean isChunked;
 
+    @SchemaProperty(name = "切片大小")
+    private Long chunkSize;
 
-    public UploadFileVO(Boolean isInstantUpload) {
-        this.isInstantUpload = isInstantUpload;
-    }
+    @SchemaProperty(name = "切片数量")
+    private Long totalChunk;
 
-    public UploadFileVO(String token) {
-        this.isInstantUpload = false;
-        this.token = token;
-    }
+//    @SchemaProperty(name = "上传授权token")
+//    private String token;
+
 }

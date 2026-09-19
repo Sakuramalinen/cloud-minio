@@ -19,21 +19,5 @@ import java.util.List;
  */
 public interface IUploadTaskRecordService extends IService<UploadTaskRecord> {
 
-    List<UploadTaskRecord> uploadProgressList();
 
-    /**
-     * 异步修改上传进度
-     * @param dto
-     */
-    void uploadProgressAsyncSave(UploadProgressSaveDTO dto);
-
-    /**
-     * 由mq异步调用批量修改上传进度
-     * @param dtoList
-     */
-    void uploadProgressSaveBatch (UploadProgressSaveDTO dtoList);
-
-    void uploadProgressDeleteBatch(List<Long> taskIds);
-
-    UploadTaskRecord createUploadTaskRecord(CreateUploadTaskRecordDTO dto);
 }

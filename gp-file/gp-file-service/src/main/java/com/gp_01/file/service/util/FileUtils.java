@@ -119,26 +119,26 @@ public class FileUtils {
 
     /**
      * 获取对象存储路径
-     * @param fileMd5
+     * @param fileIdentify
      * @param fileName
      * @return
      */
-    public String getObjectStorePath(String fileMd5, String fileName){
-        String basePath = getBasePath(fileMd5);
+    public String getObjectStorePath(String fileIdentify, String fileName){
+        String basePath = getBasePath(fileIdentify);
         String fileExtendName = getFileExtendName(fileName);
-        return MinioConstants.ORIGINAL_PATH_HEAD + "/" + basePath+ "/" + fileMd5 + fileExtendName;
+        return MinioConstants.ORIGINAL_PATH_HEAD + "/" + basePath+ "/" + fileIdentify + fileExtendName;
     }
 
     /**
      * 获取缩略图存储路径
-     * @param fileMd5
+     * @param fileIdentify
      * @param fileName
      * @return
      */
-    public String getThumbnailFileStorePath(String fileMd5, String fileName){
-        String basePath = getBasePath(fileMd5);
+    public String getThumbnailFileStorePath(String fileIdentify, String fileName){
+        String basePath = getBasePath(fileIdentify);
         String fileExtendName = getFileExtendName(fileName);
-        return MinioConstants.THUMBNAIL_PATH_HEAD + "/" + basePath+ "/" + fileMd5 + fileExtendName;
+        return MinioConstants.THUMBNAIL_PATH_HEAD + "/" + basePath+ "/" + fileIdentify + fileExtendName;
     }
 
     /**
@@ -150,8 +150,8 @@ public class FileUtils {
         return MinioConstants.AVATAR_PATH_HEAD + "/" +userId + "/" + filename;
     }
 
-    public String getBasePath(String fileMd5){
-        return fileMd5.charAt(0) + "/" + fileMd5.charAt(1);
+    public String getBasePath(String fileIdentify){
+        return fileIdentify.charAt(0) + "/" + fileIdentify.charAt(1);
     }
 
 }

@@ -7,6 +7,7 @@ import com.gp_01.auth.service.service.IAccountService;
 
 import com.gp_01.common.domain.Result;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("account")
 @RequiredArgsConstructor
+@Tag(name = "权限管理控制器",description = "")
 public class AccountController {
 
 

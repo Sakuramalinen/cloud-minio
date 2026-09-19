@@ -1,7 +1,6 @@
 package com.gp_01.file.service.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,12 +18,13 @@ import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.common.exception.CommonException;
 import com.gp_01.file.model.domain.dto.*;
 import com.gp_01.file.model.domain.po.FileObject;
-import com.gp_01.file.model.domain.po.UploadTaskRecord;
 import com.gp_01.file.model.domain.po.UserFile;
 import com.gp_01.file.model.domain.vo.PreviewImagesVO;
 import com.gp_01.file.model.domain.vo.UploadFileVO;
 import com.gp_01.file.model.domain.vo.UploadPreSignVO;
+import com.gp_01.file.service.config.FileServiceProperties;
 import com.gp_01.file.service.constants.RabbitmqFileConstants;
+import com.gp_01.file.service.constants.RedisKeyFormatter;
 import com.gp_01.file.service.mapper.FileObjectMapper;
 import com.gp_01.file.service.mapper.UploadTaskRecordMapper;
 import com.gp_01.file.service.mapper.UserFileMapper;
@@ -41,23 +41,20 @@ import io.minio.errors.MinioException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.unit.DataSize;
 
 import java.io.InputStream;
 import java.security.interfaces.RSAPrivateKey;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class FileTransferServiceImpl implements IFileTransferService {
-
-    private final UploadTaskRecordMapper uploadTaskRecordMapper;
 
     private final Downloader downloader;
 
@@ -66,6 +63,8 @@ public class FileTransferServiceImpl implements IFileTransferService {
     private final Uploader uploader;
 
     private final OSS oss;
+
+    private final RedisUtils redisUtils;
 
     private final FileUtils fileUtils;
 
@@ -79,7 +78,25 @@ public class FileTransferServiceImpl implements IFileTransferService {
 
     private final RabbitTemplate rabbitTemplate;
 
-    private final EncryptUtils encryptUtils;
+
+    private final FileServiceProperties fileServiceProperties;
+
+
+    @Override
+    public FileObject instantUpdate(String fileMd5) {
+
+        return fileObjectMapper.selectOne(new LambdaQueryWrapper<FileObject>().eq(FileObject::getFileMd5, fileMd5));
+    }
+
+    @Override
+    public String getChunkUploadProgress() {
+        Long userId = UserContext.getUser();
+        UploadInfo uploadInfo = UploadInfoContext.getUploadInfo();
+        if (uploadInfo == null) {
+            throw new BadRequestException(ErrorCode.AUTHORITY_ERROR.getCode(), "暂无上传权限");
+        }
+        return uploadInfo.getBitmap();
+    }
 
 
     @Override
@@ -87,59 +104,85 @@ public class FileTransferServiceImpl implements IFileTransferService {
     public UploadFileVO uploadAuthorize(UploadAuthorizationDTO dto) {
         Long userId = UserContext.getUser();
 
-        UploadTaskRecord task = uploadTaskRecordMapper.selectById(dto.getUploadTaskId());
-        if (task == null) {
-            throw new BadRequestException(ErrorCode.PARAM_ERROR.getCode(), "上传任务不存在");
+        //判断目录是否存在
+        LambdaQueryWrapper<UserFile> parentIdExistWrapper = new LambdaQueryWrapper<UserFile>()
+                .eq(UserFile::getUserId, userId)
+                .eq(UserFile::getId, dto.getParentId())
+                .eq(UserFile::getDeleted, 0);
+        UserFile parentIdExist = userFileMapper.selectOne(parentIdExistWrapper);
+        if (parentIdExist == null) {
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "该目录不存在");
         }
 
-
-        //秒传判断
-        FileObject fileObject = fileObjectMapper.selectOne(new LambdaQueryWrapper<FileObject>().eq(FileObject::getFileMd5, task.getFileMd5()));
-        if (fileObject != null) {
-            return new UploadFileVO(true);
+        //判断剩余空间是否足够
+        Result<User> userResult = userClient.getUserInfo(userId);
+        User userinfo = userResult.getData();
+        if (userinfo.getTotalStoreSize() - userinfo.getUsedStoreSize() < dto.getFileSize()) {
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "可用存储空间不足");
         }
+
+        long chunkSize = 0;
+        boolean isChunked = false;
+        long chunkTotal = 0;
+
+        //计算分片大小
+        if (dto.getFileSize() >= fileServiceProperties.getChunkUploadThreshold().toBytes()) {
+            chunkSize = calculateChunkSize(dto.getFileSize());
+            if (chunkSize != -1) {
+                isChunked = true;
+                chunkTotal = (dto.getFileSize() + chunkSize - 1) / chunkSize;
+            }
+        }
+
+        //获取对象存储路径
+        UUID uuid = UUID.randomUUID();
+        String objectPath = fileUtils.getObjectStorePath(uuid.toString(), dto.getFileName());
+
+        String uploadId = uuid.toString();
+
+        String chunkUploadId = null;
+        StringBuilder sb = new StringBuilder();
         //获取分片上传id
-        if (task.getIsChunked()) {
-            String uploadId = uploader.getUploadId(task.getBucketName(), task.getObjectPath());
-            task.setUploadId(uploadId);
-            LambdaUpdateWrapper<UploadTaskRecord> updateWrapper = new LambdaUpdateWrapper<UploadTaskRecord>()
-                    .eq(UploadTaskRecord::getTaskId, dto.getUploadTaskId())
-                    .eq(UploadTaskRecord::getUserId, userId)
-                    .set(UploadTaskRecord::getUploadId, uploadId);
-            uploadTaskRecordMapper.update(updateWrapper);
+        if (isChunked) {
+            chunkUploadId = uploader.getUploadId(oss.getBucketName(), objectPath);
+            for (int i = 0; i < chunkTotal; i++) {
+                sb.append("0");
+            }
         }
 
-        //创建token载荷信息
-        UploadInfo uploadInfo = new UploadInfo(task.getUploadId(), task.getObjectPath());
-        Map<String, Object> claims = new HashMap<>();
-        try {
-            String jsonString = new ObjectMapper().writeValueAsString(uploadInfo);
-            claims.put(RequestHeaderEnum.UPLOAD_AUTHORIZATION.getCustomHeaderName(), jsonString);
-        } catch (JsonProcessingException e) {
-            log.error("对象转jsonString失败: object: {}", uploadInfo);
-            throw new CommonException(ErrorCode.SERVICE_ERROR);
-        }
+        String bitmap = sb.toString();
 
-        //获取私钥
-        String privateKey = encryptUtils.getPrivateKeys().get("upload");
-        RSAPrivateKey rsaPrivateKey = encryptUtils.readPrivateKey(privateKey);
+        //创建缓存信息
+        UploadInfo uploadInfo = new UploadInfo()
+                .setUploadId(uploadId)
+                .setChunkUploadId(chunkUploadId)
+                .setObjectPath(objectPath)
+                .setFileSize(dto.getFileSize())
+                .setFileName(dto.getFileName())
+                .setParentId(dto.getParentId())
+                .setBitmap(bitmap)
+                .setContentType(dto.getContentType());
 
-        //创建token
-        String token = encryptUtils.JwtEncrypt(claims, rsaPrivateKey, 10L, TimeUnit.MINUTES);
+        String key = RedisKeyFormatter.fileUploadInfoKey(userId, uploadId);
+        redisUtils.setObject(key, uploadInfo, 1, TimeUnit.DAYS);
 
-        return new UploadFileVO(token);
+        return new UploadFileVO()
+                .setUploadId(uploadId)
+                .setIsChunked(isChunked)
+                .setChunkSize(chunkSize)
+                .setTotalChunk(chunkTotal);
 
     }
+
 
     @Override
     public UploadPreSignVO getUploadPreSignedUrl(UploadPreSignDTO dto) {
         Boolean isChunk = dto.getIsChunked();
-        //从上下文中获取uploadInfo
-        UploadInfo uploadInfo = UploadInfoContext.getUploadInfo();
 
+        UploadInfo uploadInfo = UploadInfoContext.getUploadInfo();
         //判断是否分片
         if (isChunk) {
-            Map<Integer, String> chunkPreSignUrls = uploader.uploadChunkPreSign(oss.getBucketName(), uploadInfo.getObjectPath(), uploadInfo.getUploadId(), dto.getChunkNumbers(), 10, TimeUnit.MINUTES);
+            Map<Integer, String> chunkPreSignUrls = uploader.uploadChunkPreSign(oss.getBucketName(), uploadInfo.getObjectPath(), uploadInfo.getChunkUploadId(), dto.getChunkNumbers(), 10, TimeUnit.MINUTES);
             return new UploadPreSignVO(chunkPreSignUrls);
         } else {
             String preSignUrl = uploader.uploadPreSign(oss.getBucketName(), uploadInfo.getObjectPath(), 10, TimeUnit.MINUTES);
@@ -147,56 +190,70 @@ public class FileTransferServiceImpl implements IFileTransferService {
         }
     }
 
+    @Override
+    public void setUploadProgress(Long chunkNumber) {
+        Long userId = UserContext.getUser();
+        UploadInfo uploadInfo = UploadInfoContext.getUploadInfo();
+        String key = RedisKeyFormatter.fileUploadInfoKey(userId, uploadInfo.getUploadId());
+
+
+        String bitmap = uploadInfo.getBitmap();
+        char[] chars = bitmap.toCharArray();
+        chars[(int) (chunkNumber - 1)] = '1';
+        String s = new String(chars);
+        uploadInfo.setBitmap(s);
+        redisUtils.setObject(key, uploadInfo, 1L, TimeUnit.DAYS);
+
+    }
+
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void uploadComplete(UploadCompleteDTO dto) {
-        Long taskId = dto.getTaskId();
         Long userId = UserContext.getUser();
-        LambdaQueryWrapper<UploadTaskRecord> queryWrapper = new LambdaQueryWrapper<UploadTaskRecord>()
-                .eq(UploadTaskRecord::getTaskId, taskId)
-                .eq(UploadTaskRecord::getUserId, userId);
-        //获取上传任务详细信息
-        UploadTaskRecord task = uploadTaskRecordMapper.selectOne(queryWrapper);
-        if (task == null) {
-            throw new BadRequestException(ErrorCode.PARAM_ERROR.getCode(), "上传任务不存在");
-        }
-        //切片合并
-        if (task.getIsChunked() && task.getUploadId() != null) {
-            uploadMerge(task.getBucketName(), task.getObjectPath(), task.getUploadId(), taskId);
-        }
-        //获取文件eTag
-        FileStatus fileStatus = uploader.getFileStatus(task.getBucketName(), task.getObjectPath());
 
-        //获取真实mime类型
-        String contentType = fileUtils.getContentTypeByFileBinary(task.getObjectPath(), task.getFileName());
-        fileStatus.setContentType(contentType);
+        UploadInfo uploadInfo = UploadInfoContext.getUploadInfo();
+        //如果是秒传
+        if (dto.getIsInstant()) {
+            UserFile userFile = uploadCompleteCreateUserFile(dto.getObjectId(), uploadInfo);
+            //TODO 可以异步
+            userClient.incrementUsedStoreSize(new UpdateUsedStoreSizeDTO(uploadInfo.getFileSize(), userId));
+            return;
+        }
+
+        String eTag = null;
+        //切片合并
+        //获取文件eTag
+        if (dto.getIsChunked() && uploadInfo.getChunkUploadId() != null) {
+            eTag = uploadMerge(oss.getBucketName(), uploadInfo.getObjectPath(), uploadInfo.getChunkUploadId());
+        } else {
+            FileStatus fileStatus = uploader.getFileStatus(oss.getBucketName(), uploadInfo.getObjectPath());
+            eTag = fileStatus.getETag();
+        }
 
         //存数据库
-        UserFile userFile = uploadPersistence(task, fileStatus);
+        FileObject fileObject = uploadCompleteCreateFileObject(dto.getFileMd5(), eTag, uploadInfo);
+        UserFile userFile = uploadCompleteCreateUserFile(fileObject.getId(), uploadInfo);
 
-        //删除上传任务
-        uploadTaskRecordMapper.deleteById(taskId);
-        //累加用户已使用空间
-        userClient.incrementUsedStoreSize(new UpdateUsedStoreSizeDTO(task.getFileSize(), userId));
         //文件后期处理
-        UploadFilePostHandleDTO uploadFilePostHandleDTO = new UploadFilePostHandleDTO(task.getBucketName(), contentType, userFile.getFileName(), task.getObjectPath(), task.getFileMd5());
-        rabbitTemplate.convertAndSend(RabbitmqFileConstants.EXCHANGE_TOPIC_FILE, RabbitmqFileConstants.RK_UPLOAD_POST_PROCESS, uploadFilePostHandleDTO);
+        AsyncUploadCompleteHandlerDTO asyncUploadCompleteHandlerDTO = new AsyncUploadCompleteHandlerDTO()
+                .setFileMd5(dto.getFileMd5())
+                .setFileName(userFile.getFileName())
+                .setObjectPath(uploadInfo.getObjectPath())
+                .setBucketName(oss.getBucketName())
+                .setContentType(uploadInfo.getContentType())
+                .setFileSize(uploadInfo.getFileSize())
+                .setUserId(userId);
+        rabbitTemplate.convertAndSend(RabbitmqFileConstants.EXCHANGE_TOPIC_FILE, RabbitmqFileConstants.RK_UPLOAD_POST_PROCESS, asyncUploadCompleteHandlerDTO);
 
     }
 
     //分片上传合并
-    private void uploadMerge(String bucketName, String objectPath, String uploadId, Long taskId) {
+    private String uploadMerge(String bucketName, String objectPath, String uploadId) {
         //合并分片
         try {
-            uploader.mergeChunk(bucketName, objectPath, uploadId);
+            return uploader.mergeChunk(bucketName, objectPath, uploadId);
         } catch (Exception e) {
-            //标记上传任务为失败
-            LambdaUpdateWrapper<UploadTaskRecord> updateWrapper = new LambdaUpdateWrapper<UploadTaskRecord>()
-                    .eq(UploadTaskRecord::getTaskId, taskId)
-                    .set(UploadTaskRecord::getStatus, 3);
-            uploadTaskRecordMapper.update(updateWrapper);
-
             throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传失败");
         } finally {
             //清理分片
@@ -204,44 +261,42 @@ public class FileTransferServiceImpl implements IFileTransferService {
         }
     }
 
-    //上传持久化
-    private UserFile uploadPersistence(UploadTaskRecord task, FileStatus fileStatus) {
+    //上传完成创建文件物理表
+    private FileObject uploadCompleteCreateFileObject(String fileMd5, String eTag, UploadInfo uploadInfo) {
         Long userId = UserContext.getUser();
+
         //查询是否有相同文件
         LambdaQueryWrapper<FileObject> queryWrapper = new LambdaQueryWrapper<FileObject>()
-                .eq(FileObject::getFileMd5, task.getFileMd5()).select();
+                .eq(FileObject::getFileMd5, fileMd5).select();
         FileObject fileObject = fileObjectMapper.selectOne(queryWrapper);
+
         //有相同文件增加引用， 没有则添加
         if (fileObject == null) {
             fileObject = new FileObject()
-                    .setBucketName(task.getBucketName())
-                    .setObjectPath(task.getObjectPath())
-                    .setFileMd5(task.getFileMd5())
-                    .setETag(fileStatus.getETag())
-                    .setFileSize(task.getFileSize())
-                    .setContentType(fileStatus.getContentType())
+                    .setBucketName(oss.getBucketName())
+                    .setObjectPath(uploadInfo.getObjectPath())
+                    .setFileMd5(fileMd5)
+                    .setETag(eTag)
+                    .setFileSize(uploadInfo.getFileSize())
+                    .setContentType(uploadInfo.getContentType())
                     .setRefCount(1)
                     .setUploadUserId(userId)
                     .setIsDeleted(0L);
             fileObjectMapper.insert(fileObject);
         } else {
-            fileObjectMapper.incrementRefCount(task.getFileMd5());
+            fileObjectMapper.incrementRefCount(fileMd5);
         }
-
-        //添加用户文件虚拟表
-        return createUserFileTable(task.getFileName(), task.getParentId(), fileStatus, fileObject.getId());
-
-
+        return fileObject;
     }
 
-    //创建用户文件逻辑关系表
-    private UserFile createUserFileTable(String fileName, Long parentId, FileStatus fileStatus, Long objectId) {
+    //上传完成创建用户文件逻辑表
+    private UserFile uploadCompleteCreateUserFile(Long objectId, UploadInfo uploadInfo) {
         Long userId = UserContext.getUser();
 
         //获取当前目录下所有文件名
         LambdaQueryWrapper<UserFile> queryWrapper = new LambdaQueryWrapper<UserFile>()
                 .eq(UserFile::getUserId, userId)
-                .eq(UserFile::getParentId, parentId)
+                .eq(UserFile::getParentId, uploadInfo.getParentId())
                 .eq(UserFile::getDeleted, 0);
         Set<String> fileNameSet = userFileMapper.selectList(queryWrapper)
                 .stream()
@@ -249,17 +304,17 @@ public class FileTransferServiceImpl implements IFileTransferService {
                 .collect(Collectors.toSet());
 
         //获取完全文件名
-        String safeFileName = fileUtils.getSafeFileName(fileName, fileNameSet);
+        String safeFileName = fileUtils.getSafeFileName(uploadInfo.getFileName(), fileNameSet);
 
         //构建表数据
         UserFile userFile = new UserFile()
                 .setUserId(userId)
-                .setParentId(parentId)
+                .setParentId(uploadInfo.getParentId())
                 .setObjectId(objectId)
                 .setFileName(safeFileName)
-                .setFileSize(fileStatus.getSize())
+                .setFileSize(uploadInfo.getFileSize())
                 .setIsDirectory(false)
-                .setMediaCategory(FileTypeEnum.getFileTypeEnum(fileStatus.getContentType()))
+                .setMediaCategory(FileTypeEnum.getFileTypeEnum(uploadInfo.getContentType()))
                 .setSort(0)
                 .setDeleted(0L);
 
@@ -360,12 +415,15 @@ public class FileTransferServiceImpl implements IFileTransferService {
 
 
     @Override
-    public void uploadFilePostHandle(UploadFilePostHandleDTO dto) {
+    public void asyncUploadFilePostHandle(AsyncUploadCompleteHandlerDTO dto) {
+
+        //累加用户已使用空间
+        userClient.incrementUsedStoreSize(new UpdateUsedStoreSizeDTO(dto.getFileSize(), dto.getUserId()));
 
         boolean isImage = dto.getContentType().split("/")[0].equals("image");
-
         String thumbnailFileStorePath = fileUtils.getThumbnailFileStorePath(dto.getFileMd5(), dto.getFileName());
-        //TODO制作图片缩略图
+
+        //制作图片缩略图
         if (isImage) {
             InputStream inputStream = downloader.getDownloadInputStream(dto.getBucketName(), dto.getObjectPath());
             byte[] thumbnailBytes = thumbnailUtils.createThumbnailBytes(inputStream);
@@ -381,4 +439,37 @@ public class FileTransferServiceImpl implements IFileTransferService {
     }
 
 
+    /**
+     * 计算该文件每个分片大小
+     *
+     * @param fileSize 文件总大小
+     * @return 每个分片大小 执行错误返回 -1
+     */
+    private long calculateChunkSize(Long fileSize) {
+        Map<DataSize, DataSize> chunkStrategyMap = fileServiceProperties.getChunkStrategyMap();
+        if (chunkStrategyMap == null || chunkStrategyMap.isEmpty()) {
+            log.error("gp.file-service.chunk-strategy-map配置读取失败");
+            return -1;
+        }
+        TreeMap<DataSize, DataSize> treeMap = new TreeMap<>(chunkStrategyMap);
+
+        Map.Entry<DataSize, DataSize> entry = treeMap.floorEntry(DataSize.ofBytes(fileSize));
+        if (entry == null) {
+            return -1;
+        }
+        return entry.getValue().toBytes();
+    }
+
+    /**
+     * 判断当前目录是否存在相同文件名文件
+     */
+    private UserFile fileNameExist(Long parentId, String fileName) {
+        Long userId = UserContext.getUser();
+        LambdaQueryWrapper<UserFile> wrapper = new LambdaQueryWrapper<UserFile>()
+                .eq(UserFile::getUserId, userId)
+                .eq(UserFile::getParentId, parentId)
+                .eq(UserFile::getFileName, fileName)
+                .eq(UserFile::getDeleted, 0);
+        return userFileMapper.selectOne(wrapper);
+    }
 }

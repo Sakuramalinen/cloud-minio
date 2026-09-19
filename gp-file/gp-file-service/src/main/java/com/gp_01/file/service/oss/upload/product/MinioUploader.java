@@ -52,6 +52,8 @@ public class MinioUploader implements Uploader {
         }
     }
 
+
+
     @Override
     public String uploadByBytes(byte[] fileBytes, String bucketName, String objectPath, String contentType) throws MinioException {
         PutObjectArgs args = PutObjectArgs.builder().bucket(bucketName)

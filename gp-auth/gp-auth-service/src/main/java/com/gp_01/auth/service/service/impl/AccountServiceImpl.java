@@ -86,9 +86,6 @@ public class AccountServiceImpl extends ServiceImpl<AccountMapper, Account> impl
         //存数据库
         super.save(account);
 
-
-        //创建根目录
-        userFileClient.createRoot(new CreateRootDTO(account.getUserId()));
     }
 
 

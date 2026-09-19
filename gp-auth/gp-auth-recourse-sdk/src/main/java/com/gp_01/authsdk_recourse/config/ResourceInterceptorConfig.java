@@ -22,7 +22,7 @@ public class ResourceInterceptorConfig implements WebMvcConfigurer {
         //添加用户信息到ThreadLocal
         registry.addInterceptor(new UserInfoInterceptor()).order(0);
         //增加上传信息拦截器
-        registry.addInterceptor(new UploadInfoInterceptor()).order(10);
+//        registry.addInterceptor(new UploadInfoInterceptor()).order(10);
 
 
         //判断是否需要做登录拦截

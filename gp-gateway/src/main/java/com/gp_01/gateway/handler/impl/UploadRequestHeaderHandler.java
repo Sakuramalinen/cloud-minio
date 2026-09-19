@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import java.security.interfaces.RSAPublicKey;
 import java.util.HashMap;
 
-@Component
+//@Component
 @RequiredArgsConstructor
 public class UploadRequestHeaderHandler implements RequestHeaderHandler {
 
@@ -33,11 +33,13 @@ public class UploadRequestHeaderHandler implements RequestHeaderHandler {
             String publicKey = decryptUtils.getPublicKeys().get("upload");
             RSAPublicKey rsaPublicKey = decryptUtils.readPublicKey(publicKey);
 
-            //解析token
+//            解析token
             Claims claims = decryptUtils.JwtDecrypt(token, rsaPublicKey);
             String jsonString = claims.get(RequestHeaderEnum.UPLOAD_AUTHORIZATION.getCustomHeaderName(), String.class);
 
             UploadInfo uploadInfo = new ObjectMapper().readValue(jsonString, UploadInfo.class);
+
+
 
 
             return new RequestHeaderParseResult(RequestHeaderEnum.UPLOAD_AUTHORIZATION.getCustomHeaderName(), uploadInfo);

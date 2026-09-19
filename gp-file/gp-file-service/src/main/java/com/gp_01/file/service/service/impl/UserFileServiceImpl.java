@@ -83,7 +83,7 @@ public class UserFileServiceImpl extends ServiceImpl<UserFileMapper, UserFile> i
         userFile.setUserId(userId);
         userFile.setParentId(dto.getParentId());
         userFile.setFileName(dto.getFileName());
-        userFile.setIsDirectory(false);
+        userFile.setIsDirectory(true);
 
         //保存到数据库
         super.save(userFile);

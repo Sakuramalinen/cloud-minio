@@ -6,21 +6,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RedissonClient;
 import org.springframework.cloud.bootstrap.encrypt.KeyProperties;
-import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisStringCommands;
 import org.springframework.data.redis.core.*;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Component
@@ -29,10 +25,11 @@ public class RedisUtils {
 
     private final StringRedisTemplate stringRedisTemplate;
 
+    private final RedisTemplate<String, byte[]> byteRedisTemplate;
+
+
     private final ObjectMapper objectMapper;
 
-    private final RedissonClient redissonClient;
-    private final KeyProperties keyProperties;
 
     /**
      * 写入值
@@ -94,12 +91,33 @@ public class RedisUtils {
     }
 
     /**
+     * 获取并续期
+     *
+     * @param key
+     * @param time
+     * @param timeUnit
+     * @return
+     */
+    public String getAndExpire(String key, Long time, TimeUnit timeUnit) {
+        return stringRedisTemplate.opsForValue().get(key);
+    }
+
+    /**
      * 获取对象并续期
      */
-    public <T> T getObjectAndReNew(String key, Class<T> tClass, Duration timeOut) {
+    public <T> T getObjectAndReNew(String key, Class<T> tClass, Long time, TimeUnit timeUnit) {
         try {
-            String jsonStr = stringRedisTemplate.opsForValue().getAndExpire(key, timeOut);
+            String jsonStr = stringRedisTemplate.opsForValue().getAndExpire(key, time, timeUnit);
             log.debug("读取 -> {}", jsonStr);
+            return objectMapper.readValue(jsonStr, tClass);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("redis反序列化失败", e);
+        }
+    }
+
+    public <T> T getObject(String key, Class<T> tClass){
+        String jsonStr = stringRedisTemplate.opsForValue().get(key);
+        try {
             return objectMapper.readValue(jsonStr, tClass);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("redis反序列化失败", e);
@@ -135,7 +153,7 @@ public class RedisUtils {
      */
     public void setHashAll(String key, Map<String, String> map, Long expiry, TimeUnit unit) {
         stringRedisTemplate.opsForHash().putAll(key, map);
-        stringRedisTemplate.expire(key,expiry, unit);
+        stringRedisTemplate.expire(key, expiry, unit);
     }
 
     /**
@@ -155,7 +173,7 @@ public class RedisUtils {
         });
         List<Map<String, String>> finalList = new ArrayList<>(resList.size());
         for (Object res : resList) {
-            Map<String, String> finalMap = (Map<String, String>)res;
+            Map<String, String> finalMap = (Map<String, String>) res;
             finalList.add(finalMap);
         }
         return finalList;
@@ -221,6 +239,23 @@ public class RedisUtils {
     }
 
     /**
+     * 写值到位图并续期，
+     *
+     * @param key
+     * @param offset
+     * @param value
+     * @param expire 单位秒
+     */
+    public void setBitMapAndExpire(String key, Long offset, boolean value, Long expire) {
+        String luaScript = "local oldBit = redis.call('SETBIT', KEYS[1], ARGV[1], ARGV[2]) redis.call('EXPIRE', KEYS[1], ARGV[3]) return oldBit";
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>(luaScript, Long.class);
+        int t = value ? 1 : 0;
+        Long oldBit = stringRedisTemplate.execute(script, Collections.singletonList(key), offset.toString(), String.valueOf(t), expire.toString());
+
+    }
+
+
+    /**
      * 从位图获取值
      */
     public Boolean getBitMap(String key, Long offset) {
@@ -232,6 +267,37 @@ public class RedisUtils {
      */
     public Long countBitMap(String key) {
         return stringRedisTemplate.execute(RedisConnection::stringCommands).bitCount(key.getBytes());
+    }
+
+    public String getAllBitMapAndExpire(String key, Long total, Long time, TimeUnit timeUnit){
+        byte[] bytes = byteRedisTemplate.opsForValue().getAndExpire(key, time, timeUnit);
+        StringBuilder res = new StringBuilder();
+        if(bytes == null || bytes.length == 0){
+            for (int i = 0; i < total; i++) {
+                res.append(0);
+            }
+            return res.toString();
+        }
+
+        int cnt = 0;
+        for (byte number : bytes) {
+            byte bit = 7;
+            while(bit >= 0 && cnt < total){
+                int b = (number >> bit--) & 1;
+                res.append(b);
+                cnt++;
+            }
+            if(cnt >= total){
+                break;
+            }
+        }
+
+        while(cnt < total){
+            cnt++;
+            res.append(0);
+        }
+
+        return res.toString();
     }
 
 

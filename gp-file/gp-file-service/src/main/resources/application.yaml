@@ -12,7 +12,7 @@ spring:
 
   cloud:
     nacos:
-      server-addr: localhost:8848
+      server-addr: 192.168.64.2:8848
       username: nacos
       password: nacos
       discovery:
@@ -24,4 +24,6 @@ spring:
 
 server:
   port: 8102
+
+
 

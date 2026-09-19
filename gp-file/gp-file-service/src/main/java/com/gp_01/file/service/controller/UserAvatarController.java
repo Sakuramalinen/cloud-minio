@@ -5,6 +5,7 @@ import com.gp_01.common.domain.Result;
 import com.gp_01.file.model.domain.vo.ListHistoryAvatarVO;
 import com.gp_01.file.service.service.IUserAvatarService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +23,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/user-avatar")
 @RequiredArgsConstructor
+@Tag(name = "用户头像控制器",description = "")
+
 public class UserAvatarController {
 
     private final IUserAvatarService userAvatarService;

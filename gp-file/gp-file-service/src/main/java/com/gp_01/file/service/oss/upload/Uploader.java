@@ -17,6 +17,7 @@ public interface  Uploader {
     //分片上传申请uploadId
     String getUploadId(String bucketName, String objectPath);
 
+
     //上传文件
     String uploadByBytes(byte[] fileBytes, String bucketName, String objectPath, String contentType) throws MinioException;
 

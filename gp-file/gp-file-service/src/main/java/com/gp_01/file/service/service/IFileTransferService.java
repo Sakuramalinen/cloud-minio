@@ -3,10 +3,10 @@ package com.gp_01.file.service.service;
 import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.file.model.domain.dto.*;
+import com.gp_01.file.model.domain.po.FileObject;
 import com.gp_01.file.model.domain.vo.PreviewImagesVO;
 import com.gp_01.file.model.domain.vo.UploadFileVO;
 import com.gp_01.file.model.domain.vo.UploadPreSignVO;
-import jakarta.validation.Valid;
 
 public interface IFileTransferService {
 
@@ -22,7 +22,12 @@ public interface IFileTransferService {
 
     PageResult<PreviewImagesVO> previewThumbnailsPage(PageParams params);
 
-    void uploadFilePostHandle(UploadFilePostHandleDTO dto);
+    void asyncUploadFilePostHandle(AsyncUploadCompleteHandlerDTO dto);
 
 
+    FileObject instantUpdate(String fileMd5);
+
+    void setUploadProgress(Long chunkNumber);
+
+    String getChunkUploadProgress();
 }
