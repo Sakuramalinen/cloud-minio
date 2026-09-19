@@ -26,15 +26,6 @@ public class RabbitMqListener {
 
     private final IUserFileService userFileService;
 
-    @RabbitListener(bindings = @QueueBinding(
-            value = @Queue(name = QUEUE_UPLOAD_PROGRESS_SAVE),
-            exchange = @Exchange(name = EXCHANGE_TOPIC_FILE, type = ExchangeTypes.TOPIC),
-            key = {RK_UPLOAD_PROGRESS_SAVE}
-    ))
-    public void uploadProgressSave(UploadProgressSaveDTO dto){
-        uploadTaskRecordService.uploadProgressSaveBatch(dto);
-    }
-
 
     @RabbitListener(bindings = @QueueBinding(
             value = @Queue(name = QUEUE_UPLOAD_POST_PROCESS),

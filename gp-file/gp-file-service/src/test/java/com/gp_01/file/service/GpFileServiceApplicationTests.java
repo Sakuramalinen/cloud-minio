@@ -119,24 +119,5 @@ class GpFileServiceApplicationTests {
 
     }
 
-    @Autowired
-    RedisUtils redisUtils;
-
-    @Test
-    public void redisTest(){
-        String key = RedisKeyFormatter.UploadProgressInfoKey(101L, "qwer");
-        String kk = "gp_01:file-service:upload-progress:2101132743180881922:NDRmNDE2NGYtYzhkNS00M2M5LThmMDgtZmY2ZDExODkzYTU4LjAzY2Q5NDJmLTJmNjAtNDYzMC05ODVhLWY4ZTJlNzFjY2I1YXgxNzg5NzkxMzgxMjgzNDA0NjIy";
-        redisUtils.setBitMapAndExpire(key, 3 - 1L, true, 60 * 60L *12L);
-    }
-
-    @Test
-    public void redisTest1(){
-        String key = RedisKeyFormatter.UploadProgressInfoKey(101L, "qwer");
-        String kk = "gp_01:file-service:upload-progress:2101132743180881922:NDRmNDE2NGYtYzhkNS00M2M5LThmMDgtZmY2ZDExODkzYTU4LjAzY2Q5NDJmLTJmNjAtNDYzMC05ODVhLWY4ZTJlNzFjY2I1YXgxNzg5NzkxMzgxMjgzNDA0NjIy";
-
-            String s = redisUtils.getAllBitMapAndExpire(kk, 30L, 1L, TimeUnit.DAYS);
-
-        System.out.println(s);
-    }
 
 }
