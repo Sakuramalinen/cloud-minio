@@ -17,7 +17,7 @@ import java.util.List;
  */
 public interface IUserAvatarService extends IService<UserAvatar> {
 
-    String uploadAvatar(@NotNull String filename);
+    String uploadAvatar(String filename, String contentType, Long fileSize);
 
     String previewAvatar(Long id);
 

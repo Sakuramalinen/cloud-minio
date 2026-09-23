@@ -16,6 +16,8 @@ public interface IFileTransferService {
 
     void uploadComplete(UploadCompleteDTO dto);
 
+    void cancelChunkUpload(String bucketName, String objectPath, String uploadId);
+
     String downloadFile(Long id);
 
     String previewFile(Long userFileId);

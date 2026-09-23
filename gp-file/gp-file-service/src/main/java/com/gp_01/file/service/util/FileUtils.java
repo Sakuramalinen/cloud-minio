@@ -2,6 +2,8 @@ package com.gp_01.file.service.util;
 
 
 import com.gp_01.file.service.constants.MinioConstants;
+import com.gp_01.file.service.oss.FileManipulator;
+import com.gp_01.file.service.oss.OSS;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.apache.tika.Tika;
@@ -21,7 +23,9 @@ public class FileUtils {
 
     private final Tika tika;
 
-    private final MinioUtils minioUtils;
+    private final OSS oss;
+
+    private final FileManipulator fileManipulator;
 
     private static final String CHUNK_UPLOAD_SUFFIX = ".chunkUploading";
 
@@ -30,39 +34,7 @@ public class FileUtils {
         return fileName.substring(fileName.lastIndexOf("."));
     }
 
-    /**
-     * 从文件二进制中获取contentType
-     * @param objectPath 存储路径
-     * @param fileName 文件名
-     * @return contentType
-     */
-    public String getContentTypeByFileBinary(String objectPath, String fileName){
 
-        byte[] buff = new byte[2048];
-        try(InputStream is = minioUtils.downloadFile(objectPath)) {
-            int read = is.read(buff);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        return tika.detect(buff, fileName);
-    }
-    /**
-     * 从文件二进制中获取contentType
-     * @param objectPath 存储路径
-     * @return contentType
-     */
-    public String getContentTypeByFileBinary(String objectPath){
-
-        byte[] buff = new byte[2048];
-        try(InputStream is = minioUtils.downloadFile(objectPath)) {
-            int read = is.read(buff);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        return tika.detect(buff);
-    }
 
     /**
      * 分割文件名的名字和后缀

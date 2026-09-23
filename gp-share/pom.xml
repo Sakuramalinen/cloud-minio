@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.shenyongqi.gp</groupId>
+        <artifactId>gp-parent</artifactId>
+        <version>0.0.1</version>
+    </parent>
+    <groupId>com.shenyongqi</groupId>
+    <artifactId>gp-share</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>gp-share</name>
+    <description>gp-share</description>
+    <packaging>pom</packaging>
+
+
+    <modules>
+        <module>gp-share-api</module>
+        <module>gp-share-service</module>
+    </modules>
+
+
+
+
+</project>

@@ -2,6 +2,7 @@ package com.gp_01.file.service.controller;
 
 
 import com.gp_01.common.domain.Result;
+import com.gp_01.file.model.domain.dto.UploadAvatarDto;
 import com.gp_01.file.model.domain.vo.ListHistoryAvatarVO;
 import com.gp_01.file.service.service.IUserAvatarService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,8 +33,8 @@ public class UserAvatarController {
 
     @PostMapping("upload")
     @Operation(summary = "上传头像", description = "返回预签名上传url")
-    public Result<String> uploadAvatar(@RequestBody @NotNull String fileName){
-        String url = userAvatarService.uploadAvatar(fileName);
+    public Result<String> uploadAvatar(@RequestBody  UploadAvatarDto avatarDto){
+        String url = userAvatarService.uploadAvatar(avatarDto.getFileName(), avatarDto.getContentType(), avatarDto.getFileSize());
         return Result.success(url);
     }
     @PostMapping("persistence")

@@ -2,7 +2,6 @@ package com.gp_01.file.service.util;
 
 import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.exception.CommonException;
-import com.gp_01.file.service.config.MinioConfig;
 import com.gp_01.file.service.oss.OSS;
 import io.minio.*;
 import io.minio.errors.MinioException;
@@ -13,15 +12,9 @@ import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-
-import static io.minio.Http.Method.GET;
 
 @Slf4j
-@Component
+//@Component
 @RequiredArgsConstructor
 public class MinioUtils {
 
@@ -91,7 +84,7 @@ public class MinioUtils {
     public InputStream downloadFile(String storePath) {
         try {
             return minioClient.getObject(GetObjectArgs.builder()
-                    .bucket(oss.getBucketName())
+                    .bucket(oss.getDefaultBucket())
                     .object(storePath)
                     .build());
         } catch (Exception e) {

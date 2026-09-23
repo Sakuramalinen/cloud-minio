@@ -2,9 +2,6 @@ package com.gp_01.file.service.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gp_01.auth.encrypt_sdk.utils.EncryptUtils;
 import com.gp_01.common.context.UploadInfoContext;
 import com.gp_01.common.context.UserContext;
 import com.gp_01.common.domain.Result;
@@ -13,7 +10,6 @@ import com.gp_01.common.domain.dto.PageResult;
 import com.gp_01.common.domain.query.PageParams;
 import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.enums.FileTypeEnum;
-import com.gp_01.common.enums.RequestHeaderEnum;
 import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.common.exception.CommonException;
 import com.gp_01.file.model.domain.dto.*;
@@ -26,27 +22,26 @@ import com.gp_01.file.service.config.FileServiceProperties;
 import com.gp_01.file.service.constants.RabbitmqFileConstants;
 import com.gp_01.file.service.constants.RedisKeyFormatter;
 import com.gp_01.file.service.mapper.FileObjectMapper;
-import com.gp_01.file.service.mapper.UploadTaskRecordMapper;
 import com.gp_01.file.service.mapper.UserFileMapper;
+import com.gp_01.file.service.oss.FileManipulator;
 import com.gp_01.file.service.oss.OSS;
-import com.gp_01.file.service.oss.download.Downloader;
-import com.gp_01.file.service.oss.preview.Previewer;
-import com.gp_01.file.service.oss.upload.Uploader;
 import com.gp_01.file.service.service.IFileTransferService;
 import com.gp_01.file.service.util.*;
 import com.gp_01.user.api.client.UserClient;
 import com.gp_01.user.model.domain.dto.UpdateUsedStoreSizeDTO;
 import com.gp_01.user.model.domain.po.User;
-import io.minio.errors.MinioException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.unit.DataSize;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.Part;
 
 import java.io.InputStream;
-import java.security.interfaces.RSAPrivateKey;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -56,11 +51,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class FileTransferServiceImpl implements IFileTransferService {
 
-    private final Downloader downloader;
 
-    private final Previewer previewer;
-
-    private final Uploader uploader;
+    private final FileManipulator fileManipulator;
 
     private final OSS oss;
 
@@ -144,7 +136,7 @@ public class FileTransferServiceImpl implements IFileTransferService {
         StringBuilder sb = new StringBuilder();
         //获取分片上传id
         if (isChunked) {
-            chunkUploadId = uploader.getUploadId(oss.getBucketName(), objectPath);
+            chunkUploadId = fileManipulator.initiateMultipartUpload(oss.getDefaultBucket(), objectPath, dto.getContentType());
             for (int i = 0; i < chunkTotal; i++) {
                 sb.append("0");
             }
@@ -182,10 +174,14 @@ public class FileTransferServiceImpl implements IFileTransferService {
         UploadInfo uploadInfo = UploadInfoContext.getUploadInfo();
         //判断是否分片
         if (isChunk) {
-            Map<Integer, String> chunkPreSignUrls = uploader.uploadChunkPreSign(oss.getBucketName(), uploadInfo.getObjectPath(), uploadInfo.getChunkUploadId(), dto.getChunkNumbers(), 10, TimeUnit.MINUTES);
-            return new UploadPreSignVO(chunkPreSignUrls);
+            HashMap<Integer, String> map = new HashMap<>();
+            for (Integer chunkNumber : dto.getChunkNumbers()) {
+                String url = fileManipulator.generateUploadPartPreSignedUrl(oss.getDefaultBucket(), uploadInfo.getObjectPath(), uploadInfo.getChunkUploadId(), chunkNumber, Duration.ofHours(1));
+                map.put(chunkNumber, url);
+            }
+            return new UploadPreSignVO(map);
         } else {
-            String preSignUrl = uploader.uploadPreSign(oss.getBucketName(), uploadInfo.getObjectPath(), 10, TimeUnit.MINUTES);
+            String preSignUrl = fileManipulator.generateUploadPreSignedUrl(oss.getDefaultBucket(), uploadInfo.getObjectPath(), uploadInfo.getContentType(), uploadInfo.getFileSize(), Duration.ofHours(1));
             return new UploadPreSignVO(preSignUrl);
         }
     }
@@ -225,10 +221,10 @@ public class FileTransferServiceImpl implements IFileTransferService {
         //切片合并
         //获取文件eTag
         if (dto.getIsChunked() && uploadInfo.getChunkUploadId() != null) {
-            eTag = uploadMerge(oss.getBucketName(), uploadInfo.getObjectPath(), uploadInfo.getChunkUploadId());
+            eTag = uploadMerge(oss.getDefaultBucket(), uploadInfo.getObjectPath(), uploadInfo.getChunkUploadId());
         } else {
-            FileStatus fileStatus = uploader.getFileStatus(oss.getBucketName(), uploadInfo.getObjectPath());
-            eTag = fileStatus.getETag();
+            HeadObjectResponse headObjectResponse = fileManipulator.obtainObjectMetaData(oss.getDefaultBucket(), uploadInfo.getObjectPath());
+            eTag = headObjectResponse.eTag();
         }
 
         //存数据库
@@ -240,7 +236,7 @@ public class FileTransferServiceImpl implements IFileTransferService {
                 .setFileMd5(dto.getFileMd5())
                 .setFileName(userFile.getFileName())
                 .setObjectPath(uploadInfo.getObjectPath())
-                .setBucketName(oss.getBucketName())
+                .setBucketName(oss.getDefaultBucket())
                 .setContentType(uploadInfo.getContentType())
                 .setFileSize(uploadInfo.getFileSize())
                 .setUserId(userId);
@@ -250,14 +246,20 @@ public class FileTransferServiceImpl implements IFileTransferService {
 
     //分片上传合并
     private String uploadMerge(String bucketName, String objectPath, String uploadId) {
-        //合并分片
         try {
-            return uploader.mergeChunk(bucketName, objectPath, uploadId);
+            //合并分片
+            List<Part> parts = fileManipulator.listParts(bucketName, objectPath, uploadId);
+            List<CompletedPart> completedParts = new ArrayList<>();
+            for (Part part : parts) {
+                CompletedPart completedPart = CompletedPart.builder().partNumber(part.partNumber()).eTag(part.eTag()).build();
+                completedParts.add(completedPart);
+            }
+            return fileManipulator.completeMultipartUpload(bucketName, objectPath, uploadId, completedParts);
         } catch (Exception e) {
             throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传失败");
         } finally {
             //清理分片
-            uploader.abortInCompleteMultipartUpload(bucketName, objectPath, uploadId);
+            fileManipulator.abortMultipartUpload(bucketName, objectPath, uploadId);
         }
     }
 
@@ -273,7 +275,7 @@ public class FileTransferServiceImpl implements IFileTransferService {
         //有相同文件增加引用， 没有则添加
         if (fileObject == null) {
             fileObject = new FileObject()
-                    .setBucketName(oss.getBucketName())
+                    .setBucketName(oss.getDefaultBucket())
                     .setObjectPath(uploadInfo.getObjectPath())
                     .setFileMd5(fileMd5)
                     .setETag(eTag)
@@ -321,6 +323,10 @@ public class FileTransferServiceImpl implements IFileTransferService {
         userFileMapper.insert(userFile);
         return userFile;
     }
+    @Override
+    public void cancelChunkUpload(String bucketName, String objectPath, String uploadId){
+        fileManipulator.abortMultipartUpload(bucketName, objectPath, uploadId);
+    }
 
 
     @Override
@@ -347,7 +353,7 @@ public class FileTransferServiceImpl implements IFileTransferService {
         String objectPath = fileBase.getObjectPath();
 
         //获取预签名url
-        return downloader.downloadPreSign(oss.getBucketName(), fileName, objectPath, contentType, 10, TimeUnit.MINUTES);
+        return fileManipulator.generateDownloadPreSignedUrl(oss.getDefaultBucket(), fileName, objectPath, contentType, Duration.ofHours(1));
     }
 
 
@@ -362,14 +368,13 @@ public class FileTransferServiceImpl implements IFileTransferService {
         //查用户文件逻辑表
         LambdaQueryWrapper<UserFile> previewWrapper = new LambdaQueryWrapper<UserFile>()
                 .eq(UserFile::getObjectId, fileId)
-                .eq(UserFile::getUserId, userId)
-                .eq(UserFile::getDeleted, 0);
+                   .eq(UserFile::getDeleted, 0);
         UserFile userFile = userFileMapper.selectOne(previewWrapper);
         if (userFile == null) {
             throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "数据不存在");
         }
 
-        return previewer.previewPreSignUrl(fileObject.getBucketName(), fileObject.getObjectPath(), fileObject.getContentType(), 10, TimeUnit.MINUTES);
+        return fileManipulator.generatePreviewPreSignedUrl(fileObject.getBucketName(), fileObject.getObjectPath(), fileObject.getContentType(), Duration.ofHours(1));
 
     }
 
@@ -401,7 +406,7 @@ public class FileTransferServiceImpl implements IFileTransferService {
 
             String thumbnailObjectPath = fileUtils.getThumbnailFileStorePath(fileObject.getFileMd5(), record.getFileName());
             //获取缩略图签名
-            String thumbnailUrl = previewer.previewPreSignUrl(oss.getBucketName(), thumbnailObjectPath, fileObject.getContentType(), 10, TimeUnit.MINUTES);
+            String thumbnailUrl = fileManipulator.generatePreviewPreSignedUrl(oss.getDefaultBucket(), thumbnailObjectPath, fileObject.getContentType(), Duration.ofHours(1));
             vo.setFileId(fileId);
             vo.setFileName(record.getFileName());
             vo.setFileSize(fileObject.getFileSize());
@@ -425,11 +430,11 @@ public class FileTransferServiceImpl implements IFileTransferService {
 
         //制作图片缩略图
         if (isImage) {
-            InputStream inputStream = downloader.getDownloadInputStream(dto.getBucketName(), dto.getObjectPath());
+            InputStream inputStream = fileManipulator.obtainDownloadInputStream(dto.getBucketName(), dto.getObjectPath(), dto.getContentType(), dto.getFileName());
             byte[] thumbnailBytes = thumbnailUtils.createThumbnailBytes(inputStream);
             try {
-                uploader.uploadByBytes(thumbnailBytes, dto.getBucketName(), thumbnailFileStorePath, dto.getContentType());
-            } catch (MinioException e) {
+                fileManipulator.standardUpload(thumbnailBytes, dto.getBucketName(), thumbnailFileStorePath, dto.getContentType());
+            } catch (Exception e) {
                 log.error("缩略图上传失败");
                 throw new CommonException(ErrorCode.OSS_ERROR.getCode(), "上传失败");
             }

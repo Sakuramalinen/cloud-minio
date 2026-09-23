@@ -1,29 +1,13 @@
 spring:
-  config:
-    import: "optional:nacos:gp-gateway-service-local.yaml?group=gp-project&namespace=5e09156e-dc92-4641-8aba-bc14328befa8&refreshEnabled=true"
-  profiles:
-    active: local
   application:
     name: gp-gateway-service
-  cloud:
-    nacos:
-      server-addr: 192.168.64.2:8848
-      username: nacos
-      password: nacos
-      config:
-        group: gp-project
-        file-extension: yaml
-        namespace: 5e09156e-dc92-4641-8aba-bc14328befa8
-      discovery:
-        group: gp-project
-        namespace: 5e09156e-dc92-4641-8aba-bc14328befa8
+  profiles:
+    active: ${ACTIVE}
+
 
 
 server:
-  port: 8100
-gp:
-  auth:
-    exclude-path:
+  port: ${SERVER-PORT}
 
 
 

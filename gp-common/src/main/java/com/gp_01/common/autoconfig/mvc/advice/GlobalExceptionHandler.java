@@ -21,7 +21,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ForbiddenException.class)
     public Result<?> ForbiddenExceptionHandle(ForbiddenException e){
-        log.error("权限异常:", e);
+         log.error("权限异常:", e);
         return Result.error(e.getCode(),e.getMessage());
     }
 

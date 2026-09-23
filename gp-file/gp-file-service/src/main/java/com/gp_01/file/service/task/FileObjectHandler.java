@@ -2,8 +2,7 @@ package com.gp_01.file.service.task;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gp_01.file.model.domain.po.FileObject;
-import com.gp_01.file.service.mapper.FileObjectMapper;
-import com.gp_01.file.service.oss.delete.Deleter;
+import com.gp_01.file.service.oss.OSS;
 import com.gp_01.file.service.service.IFileObjectService;
 import com.xxl.job.core.handler.annotation.XxlJob;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +19,7 @@ public class FileObjectHandler {
 
     private final IFileObjectService fileObjectService;
 
-    private final Deleter deleter;
+    private final OSS oss;
 
 
     /**
@@ -38,7 +37,7 @@ public class FileObjectHandler {
             for (FileObject record : records) {
                 objectPaths.add(record.getObjectPath());
             }
-            deleter.deleteObjects(objectPaths);
+            oss.fileManipulator.deleteObjectBatch(oss.getDefaultBucket(), objectPaths);
         }
     }
 }

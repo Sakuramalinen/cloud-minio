@@ -1,0 +1,16 @@
+spring:
+  config:
+    import:
+      - "optional:nacos:gp-gateway-service-${spring.profiles.active}.yaml?group=gp-project&namespace=${spring.cloud.nacos.config.namespace}&refreshEnabled=true"
+  cloud:
+    nacos:
+      server-addr: ${NACOS-SERVER-ADDR}
+      username: ${NACOS-SERVER-USERNAME}
+      password: ${NACOS-SERVER-PASSWORD}
+      config:
+        group: gp-project
+        file-extension: yaml
+        namespace: 4e5ad2b5-9248-4044-9876-59785cfc6b00
+      discovery:
+        group: gp-project
+        namespace: 4e5ad2b5-9248-4044-9876-59785cfc6b00

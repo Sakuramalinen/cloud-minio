@@ -1,8 +1,5 @@
 package com.gp_01.file.service.config;
 
-import com.gp_01.file.service.oss.download.Downloader;
-import com.gp_01.file.service.oss.download.product.MinioDownloader;
-import io.minio.MinioClient;
 import org.apache.tika.Tika;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;

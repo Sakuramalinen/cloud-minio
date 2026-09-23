@@ -1,0 +1,17 @@
+spring:
+  config:
+    import:
+      - "optional:nacos:shared-mybatis-plus-${spring.profiles.active}.yaml?group=gp-project&namespace=${spring.cloud.nacos.config.namespace}&refreshEnabled=true"
+      - "optional:nacos:gp-user-service-${spring.profiles.active}.yaml?group=gp-project&namespace=${spring.cloud.nacos.config.namespace}&refreshEnabled=true"
+  cloud:
+    nacos:
+      server-addr: ${NACOS-SERVER-ADDR}
+      username: ${NACOS-SERVER-USERNAME}
+      password: ${NACOS-SERVER-PASSWORD}
+      discovery:
+        group: gp-project
+        namespace: 4e5ad2b5-9248-4044-9876-59785cfc6b00
+      config:
+        group: gp-project
+        namespace: 4e5ad2b5-9248-4044-9876-59785cfc6b00
+        file-extension: yaml

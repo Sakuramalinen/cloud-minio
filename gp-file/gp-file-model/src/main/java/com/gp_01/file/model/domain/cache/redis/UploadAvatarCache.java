@@ -8,5 +8,7 @@ import lombok.experimental.Accessors;
 @AllArgsConstructor
 public class UploadAvatarCache {
     private String objectPath;
+    private String fileName;
+    private String contentType;
     private Long fileSize;
 }

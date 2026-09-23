@@ -29,7 +29,7 @@
         <spring-cloud-dependencies.version>2025.0.2</spring-cloud-dependencies.version>
         <spring-cloud-alibaba-dependencies.version>2025.0.0.0</spring-cloud-alibaba-dependencies.version>
         <mysql-connector-j.version>8.3.0</mysql-connector-j.version>
-        <lombok.version>1.18.42</lombok.version>
+        <lombok.version>1.18.48</lombok.version>
         <mybatis-plus-spring-boot3-starter.version>3.5.14</mybatis-plus-spring-boot3-starter.version>
         <mybatis-plus-jsqlparser.version>3.5.14</mybatis-plus-jsqlparser.version>
         <swagger.version>4.6.0.2</swagger.version>
@@ -39,7 +39,15 @@
         <redisson-spring-boot-starter.verion>3.52.0</redisson-spring-boot-starter.verion>
         <nimbus-jose-jwt.version>10.9.1</nimbus-jose-jwt.version>
         <xxl-job-core.version>3.4.2</xxl-job-core.version>
+        <s3.version>2.55.0</s3.version>
+
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
+
+
 
     <dependencyManagement>
         <dependencies>
@@ -139,7 +147,16 @@
                 <version>${xxl-job-core.version}</version>
                 <scope>compile</scope>
             </dependency>
+
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>s3</artifactId>
+                <version>${s3.version}</version>
+            </dependency>
         </dependencies>
+
+
+
     </dependencyManagement>
 
     <dependencies>
@@ -176,14 +193,26 @@
         <!--        </dependency>-->
     </dependencies>
 
-
     <build>
+
         <plugins>
             <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
             </plugin>
+
         </plugins>
     </build>
+
+
 
 </project>

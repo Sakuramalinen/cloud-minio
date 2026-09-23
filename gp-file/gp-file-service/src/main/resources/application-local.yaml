@@ -1,0 +1,21 @@
+spring:
+  config:
+    import:
+      - "optional:nacos:shared-xxl-job-admin-${spring.profiles.active}.yaml?group=gp-project&namespace=${spring.cloud.nacos.config.namespace}&refreshEnabled=true"
+      - "optional:nacos:shared-mybatis-plus-${spring.profiles.active}.yaml?group=gp-project&namespace=${spring.cloud.nacos.config.namespace}&refreshEnabled=true"
+      - "optional:nacos:shared-redis-${spring.profiles.active}.yaml?group=gp-project&namespace=${spring.cloud.nacos.config.namespace}&refreshEnabled=true"
+      - "optional:nacos:shared-rabbitmq-${spring.profiles.active}.yaml?group=gp-project&namespace=${spring.cloud.nacos.config.namespace}&refreshEnabled=true"
+      - "optional:nacos:gp-file-service-${spring.profiles.active}.yaml?group=gp-project&namespace=${spring.cloud.nacos.config.namespace}&refreshEnabled=true"
+
+
+  cloud:
+    nacos:
+      server-addr: 192.168.64.2:8848
+      username: nacos
+      password: nacos
+      discovery:
+        group: gp-project
+        namespace: 5e09156e-dc92-4641-8aba-bc14328befa8
+      config:
+        group: gp-project
+        namespace: 5e09156e-dc92-4641-8aba-bc14328befa8

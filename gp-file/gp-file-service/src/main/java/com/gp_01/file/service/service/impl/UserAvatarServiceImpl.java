@@ -5,24 +5,22 @@ import com.gp_01.common.context.UserContext;
 import com.gp_01.common.enums.ErrorCode;
 import com.gp_01.common.exception.BadRequestException;
 import com.gp_01.common.exception.CommonException;
+import com.gp_01.file.model.domain.cache.redis.UploadAvatarCache;
 import com.gp_01.file.model.domain.po.UserAvatar;
 import com.gp_01.file.model.domain.vo.ListHistoryAvatarVO;
-import com.gp_01.file.service.config.MinioConfig;
 import com.gp_01.file.service.constants.RedisKeyFormatter;
 import com.gp_01.file.service.mapper.UserAvatarMapper;
+import com.gp_01.file.service.oss.FileManipulator;
 import com.gp_01.file.service.oss.OSS;
-import com.gp_01.file.service.oss.preview.Previewer;
-import com.gp_01.file.service.oss.preview.product.MinioPreviewer;
-import com.gp_01.file.service.oss.upload.Uploader;
-import com.gp_01.file.service.oss.upload.product.MinioUploader;
 import com.gp_01.file.service.service.IUserAvatarService;
 import com.gp_01.file.service.util.FileUtils;
-import com.gp_01.file.service.util.MinioUtils;
+//import com.gp_01.file.service.util.MinioUtils;
 import com.gp_01.file.service.util.RedisUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -43,19 +41,15 @@ public class UserAvatarServiceImpl extends ServiceImpl<UserAvatarMapper, UserAva
 
     private final FileUtils fileUtils;
 
-    private final Uploader uploader;
-
-    private final Previewer previewer;
-
     private final OSS oss;
+
+    private final FileManipulator fileManipulator;
 
     private final RedisUtils redisUtils;
 
-    private final MinioUtils minioUtils;
-
 
     @Override
-    public String uploadAvatar(String filename) {
+    public String uploadAvatar(String filename, String contentType, Long fileSize) {
 
         Long userId = UserContext.getUser();
         String uuid = UUID.randomUUID().toString();
@@ -63,10 +57,11 @@ public class UserAvatarServiceImpl extends ServiceImpl<UserAvatarMapper, UserAva
         String alias = uuid + extendName;
         //申请预签名url
         String avatarFileStorePath = fileUtils.getAvatarFileStorePath(alias, userId);
-        String url = uploader.uploadPreSign(oss.getBucketName(), avatarFileStorePath, 5, TimeUnit.MINUTES);
+        String url = fileManipulator.generateUploadPreSignedUrl(oss.getDefaultBucket(), avatarFileStorePath, contentType, fileSize, Duration.ofHours(1));
         //将地址存到内存
         String key = RedisKeyFormatter.UploadAvatarInfoKey(userId);
-        redisUtils.set(key, avatarFileStorePath, 5L, TimeUnit.MINUTES);
+        UploadAvatarCache cache = new UploadAvatarCache(avatarFileStorePath, filename, contentType, fileSize);
+        redisUtils.setObject(key, cache, 5L, TimeUnit.MINUTES);
         return url;
     }
 
@@ -82,7 +77,7 @@ public class UserAvatarServiceImpl extends ServiceImpl<UserAvatarMapper, UserAva
             throw new CommonException(ErrorCode.SERVICE_ERROR);
         }
 
-        return previewer.previewPreSignUrl(oss.getBucketName(), one.getObjectPath(), one.getContentType(), 1, TimeUnit.DAYS);
+        return fileManipulator.generatePreviewPreSignedUrl(oss.getDefaultBucket(), one.getObjectPath(), one.getContentType(), Duration.ofHours(1));
     }
 
     @Override
@@ -96,7 +91,7 @@ public class UserAvatarServiceImpl extends ServiceImpl<UserAvatarMapper, UserAva
         List<ListHistoryAvatarVO> res = new ArrayList<>();
         for (UserAvatar userAvatar : list) {
             //获取预签名url
-            String url = previewer.previewPreSignUrl(oss.getBucketName(), userAvatar.getObjectPath(), userAvatar.getContentType(), 1, TimeUnit.DAYS);
+            String url = fileManipulator.generatePreviewPreSignedUrl(oss.getDefaultBucket(), userAvatar.getObjectPath(), userAvatar.getContentType(), Duration.ofHours(1));
             ListHistoryAvatarVO vo = new ListHistoryAvatarVO()
                     .setId(userAvatar.getId())
                     .setUrl(url)
@@ -111,27 +106,17 @@ public class UserAvatarServiceImpl extends ServiceImpl<UserAvatarMapper, UserAva
     public Long persistenceAvatar() {
         Long userId = UserContext.getUser();
         String key = RedisKeyFormatter.UploadAvatarInfoKey(userId);
-        String objectPath = redisUtils.get(key);
-        if (objectPath == null) {
-            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传超时，请重新上传");
-        }
+        UploadAvatarCache uploadAvatarCache = redisUtils.getObject(key, UploadAvatarCache.class);
 
-        //获取真实content-type
-        String contentType;
-        Long size;
-        //获取文件大小
-        try {
-            contentType = fileUtils.getContentTypeByFileBinary(objectPath);
-            size = minioUtils.getFileStatus(oss.getBucketName(), objectPath).getSize();
-        } catch (Exception e) {
-            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传失败，请重新上传");
+        if (uploadAvatarCache.getObjectPath() == null) {
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传超时，请重新上传");
         }
 
         UserAvatar userAvatar = new UserAvatar()
                 .setUserId(userId)
-                .setContentType(contentType)
-                .setFileSize(size)
-                .setObjectPath(objectPath);
+                .setContentType(uploadAvatarCache.getContentType())
+                .setFileSize(uploadAvatarCache.getFileSize())
+                .setObjectPath(uploadAvatarCache.getObjectPath());
 
         //存数据库
         super.save(userAvatar);
