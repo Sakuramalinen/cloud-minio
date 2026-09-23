@@ -353,7 +353,7 @@ public class FileTransferServiceImpl implements IFileTransferService {
         String objectPath = fileBase.getObjectPath();
 
         //获取预签名url
-        return fileManipulator.generateDownloadPreSignedUrl(oss.getDefaultBucket(), fileName, objectPath, contentType, Duration.ofHours(1));
+        return fileManipulator.generateDownloadPreSignedUrl(oss.getDefaultBucket(), objectPath, fileName, contentType, Duration.ofHours(1));
     }
 
 
