@@ -26,7 +26,6 @@ public class XxlJobConfig {
 
     @Bean
     public XxlJobSpringExecutor xxlJobSpringExecutor(){
-        log.info(">>>>>>>> xxl-job executor start");
         XxlJobSpringExecutor executor = new XxlJobSpringExecutor();
         executor.setAdminAddresses(adminAddress);
         executor.setAccessToken(accessToken);
@@ -34,6 +33,8 @@ public class XxlJobConfig {
         executor.setPort(port);
         executor.setLogPath(logPath);
         executor.setLogRetentionDays(logRetentionDay);
+        log.info(">>>>>>>> xxl-job executor start");
+
         return executor;
     }
 

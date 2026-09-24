@@ -256,10 +256,10 @@ public class FileTransferServiceImpl implements IFileTransferService {
             }
             return fileManipulator.completeMultipartUpload(bucketName, objectPath, uploadId, completedParts);
         } catch (Exception e) {
-            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传失败");
-        } finally {
             //清理分片
+
             fileManipulator.abortMultipartUpload(bucketName, objectPath, uploadId);
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "上传失败");
         }
     }
 

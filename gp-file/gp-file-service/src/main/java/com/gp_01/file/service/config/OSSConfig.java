@@ -1,4 +1,4 @@
-package com.gp_01.file.service.config.oss;
+package com.gp_01.file.service.config;
 
 import com.gp_01.file.service.oss.BucketManipulator;
 import com.gp_01.file.service.oss.FileManipulator;
@@ -14,7 +14,6 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.checksums.RequestChecksumCalculation;
 import software.amazon.awssdk.core.checksums.ResponseChecksumValidation;
-import software.amazon.awssdk.core.internal.http.AmazonAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
