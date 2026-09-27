@@ -11,8 +11,8 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum RegisterType {
 
-    PHONE_NUMBER(1,"手机号码方式注册"),
-    EMAIL(2, "邮箱方式注册");
+    PHONE_NUMBER_VERIFICATION_CODE(1,"手机验证码方式注册"),
+    EMAIL_VERIFICATION_CODE(2, "邮箱方式注册");
 
     @EnumValue
     @JsonValue

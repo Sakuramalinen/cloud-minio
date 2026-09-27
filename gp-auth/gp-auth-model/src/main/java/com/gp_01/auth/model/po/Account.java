@@ -42,7 +42,7 @@ public class Account implements Serializable {
     @SchemaProperty(name = "手机号")
     private String phone;
 
-    @SchemaProperty(name = "帐号状态（1:正常, 0:停用, 2:锁定）")
+    @SchemaProperty(name = "帐号状态（0:正常, 1:停用, 2:锁定）")
     private Integer status;
 
     @SchemaProperty(name = "删除标志")

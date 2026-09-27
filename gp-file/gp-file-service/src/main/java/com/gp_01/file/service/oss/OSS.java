@@ -13,9 +13,10 @@ import org.springframework.context.annotation.Bean;
 @Accessors(chain = true)
 public class OSS {
 
-    private String url;
 
     private String region;
+
+    private String endpoint;
 
     private String accessKey;
 

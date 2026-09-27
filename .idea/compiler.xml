@@ -15,22 +15,128 @@
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
           <entry name="/opt/homebrew/Cellar/maven/3.9.16/mvn_repo/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
+          <entry name="/opt/homebrew/Cellar/maven/3.9.16/mvn_repo/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
+        </processorPath>
+        <module name="gp-share-service" />
+        <module name="gp-common" />
+        <module name="gp-share-api" />
+      </profile>
+      <profile name="Annotation profile for gp-auth-api" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="/opt/homebrew/Cellar/maven/3.9.16/mvn_repo/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
+        </processorPath>
+        <module name="gp-auth-api" />
+      </profile>
+      <profile name="Annotation profile for gp-auth-decrypt-sdk" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="/opt/homebrew/Cellar/maven/3.9.16/mvn_repo/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
+        </processorPath>
+        <module name="gp-auth-decrypt-sdk" />
+      </profile>
+      <profile name="Annotation profile for gp-auth-encrypt-sdk" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="/opt/homebrew/Cellar/maven/3.9.16/mvn_repo/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
+        </processorPath>
+        <module name="gp-auth-encrypt-sdk" />
+      </profile>
+      <profile name="Annotation profile for gp-auth-model" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="/opt/homebrew/Cellar/maven/3.9.16/mvn_repo/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
+        </processorPath>
+        <module name="gp-auth-model" />
+      </profile>
+      <profile name="Annotation profile for gp-auth-recourse-sdk" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="/opt/homebrew/Cellar/maven/3.9.16/mvn_repo/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
         </processorPath>
         <module name="gp-auth-recourse-sdk" />
-        <module name="gp-user-api" />
-        <module name="gp-auth-model" />
-        <module name="gp-share-service" />
-        <module name="gp-user-model" />
-        <module name="gp-user-service" />
-        <module name="gp-file-service" />
-        <module name="gp-auth-decrypt-sdk" />
-        <module name="gp-common" />
-        <module name="gp-gateway" />
+      </profile>
+      <profile name="Annotation profile for gp-auth-service" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="/opt/homebrew/Cellar/maven/3.9.16/mvn_repo/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
+        </processorPath>
         <module name="gp-auth-service" />
+      </profile>
+      <profile name="Annotation profile for gp-file-api" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="/opt/homebrew/Cellar/maven/3.9.16/mvn_repo/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
+        </processorPath>
         <module name="gp-file-api" />
+      </profile>
+      <profile name="Annotation profile for gp-file-model" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="/opt/homebrew/Cellar/maven/3.9.16/mvn_repo/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
+        </processorPath>
         <module name="gp-file-model" />
-        <module name="gp-share-api" />
-        <module name="gp-auth-encrypt-sdk" />
+      </profile>
+      <profile name="Annotation profile for gp-file-service" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="/opt/homebrew/Cellar/maven/3.9.16/mvn_repo/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
+        </processorPath>
+        <module name="gp-file-service" />
+      </profile>
+      <profile name="Annotation profile for gp-gateway" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="/opt/homebrew/Cellar/maven/3.9.16/mvn_repo/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
+        </processorPath>
+        <module name="gp-gateway" />
+      </profile>
+      <profile name="Annotation profile for gp-user-api" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="/opt/homebrew/Cellar/maven/3.9.16/mvn_repo/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
+        </processorPath>
+        <module name="gp-user-api" />
+      </profile>
+      <profile name="Annotation profile for gp-user-model" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="/opt/homebrew/Cellar/maven/3.9.16/mvn_repo/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
+        </processorPath>
+        <module name="gp-user-model" />
+      </profile>
+      <profile name="Annotation profile for gp-user-service" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="/opt/homebrew/Cellar/maven/3.9.16/mvn_repo/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
+        </processorPath>
+        <module name="gp-user-service" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
@@ -42,6 +148,7 @@
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="gp-auth" options="-parameters" />
+      <module name="gp-auth-api" options="-parameters" />
       <module name="gp-auth-decrypt-sdk" options="-parameters" />
       <module name="gp-auth-encrypt-sdk" options="-parameters" />
       <module name="gp-auth-model" options="-parameters" />

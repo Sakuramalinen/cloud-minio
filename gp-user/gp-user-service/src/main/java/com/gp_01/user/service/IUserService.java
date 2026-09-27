@@ -2,6 +2,7 @@ package com.gp_01.user.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.gp_01.user.model.domain.po.User;
+import com.gp_01.user.model.domain.vo.UserInfoVo;
 import jakarta.validation.constraints.NotNull;
 
 /**
@@ -15,7 +16,7 @@ import jakarta.validation.constraints.NotNull;
 public interface IUserService extends IService<User> {
 
 
-    User getUserInfo(@NotNull Long accountId);
+    UserInfoVo getUserInfo(@NotNull Long accountId);
 
     void updateUserInfo(User user);
 

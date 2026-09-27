@@ -13,7 +13,7 @@ import java.net.UnknownHostException;
 
 @SpringBootApplication
 @Slf4j
-@EnableFeignClients({"com.gp_01.file.api.client"})
+@EnableFeignClients({"com.gp_01.file.api.client", "com.shenyongqi.auth.api.client"})
 @MapperScan("com.gp_01.user.mapper")
 public class GpUserApplication {
 

@@ -3,6 +3,7 @@ package com.gp_01.auth.model.dto;
 import com.gp_01.auth.model.enums.RegisterType;
 import io.swagger.v3.oas.annotations.media.SchemaProperty;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -22,4 +23,7 @@ public class RegisterDTO {
 
     @SchemaProperty(name = "邮箱")
     private String email;
+
+    @SchemaProperty(name = "验证码")
+    private String verificationCode;
 }

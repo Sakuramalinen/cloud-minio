@@ -20,6 +20,7 @@ public enum ErrorCode {
     AUTHORITY_ERROR(10300, "访问权限错误"),
     UNAUTHORIZED_ERROR(10301, "用户未授权"),
     AUTHORITY_EXPIRATION_ERROR(10311, "授权已过期"),
+    VERIFICATION_CODE_ERROR(10312, "验证码错误"),
 
     PARAM_ERROR(10400, "用户请求参数异常"),
 

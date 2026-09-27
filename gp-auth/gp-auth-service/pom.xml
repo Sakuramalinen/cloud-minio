@@ -32,14 +32,15 @@
         </dependency>
         <dependency>
             <groupId>com.shenyongqi.gp</groupId>
-            <artifactId>gp-user-api</artifactId>
+            <artifactId>gp-auth-recourse-sdk</artifactId>
             <version>0.0.1</version>
         </dependency>
         <dependency>
             <groupId>com.shenyongqi.gp</groupId>
-            <artifactId>gp-auth-recourse-sdk</artifactId>
+            <artifactId>gp-user-api</artifactId>
             <version>0.0.1</version>
         </dependency>
+
         <dependency>
             <groupId>com.shenyongqi.gp</groupId>
             <artifactId>gp-user-model</artifactId>
@@ -82,6 +83,11 @@
             <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-boot-starter</artifactId>
+        </dependency>
+
 
 
         <dependency>
@@ -100,6 +106,11 @@
         <dependency>
             <groupId>com.nimbusds</groupId>
             <artifactId>nimbus-jose-jwt</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>alibabacloud-dypnsapi20170525</artifactId>
         </dependency>
     </dependencies>
 

@@ -40,6 +40,7 @@
         <nimbus-jose-jwt.version>10.9.1</nimbus-jose-jwt.version>
         <xxl-job-core.version>3.4.2</xxl-job-core.version>
         <s3.version>2.55.0</s3.version>
+        <alibabacloud-dypnsapi20170525.version>2.0.0</alibabacloud-dypnsapi20170525.version>
 
         <maven.compiler.source>25</maven.compiler.source>
         <maven.compiler.target>25</maven.compiler.target>
@@ -153,7 +154,17 @@
                 <artifactId>s3</artifactId>
                 <version>${s3.version}</version>
             </dependency>
+
+<!--            阿里云短信认证服务-->
+            <dependency>
+                <groupId>com.aliyun</groupId>
+                <artifactId>alibabacloud-dypnsapi20170525</artifactId>
+                <version>${alibabacloud-dypnsapi20170525.version}</version>
+            </dependency>
+
         </dependencies>
+
+
 
 
 

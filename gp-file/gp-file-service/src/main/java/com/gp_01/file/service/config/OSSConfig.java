@@ -27,9 +27,10 @@ import java.net.URI;
 @ConfigurationProperties("gp.file.oss")
 public class OSSConfig {
 
-    private String url;
 
     private String region;
+
+    private String endpoint;
 
     private String accessKey;
 
@@ -55,13 +56,13 @@ public class OSSConfig {
 
     @Bean
     public OSS oss(BucketManipulator bucketManipulator, FileManipulator fileManipulator){
-        return new OSS(url,region,accessKey,secretKey,defaultBucket,avatarBucket,tempBucket, bucketManipulator, fileManipulator);
+        return new OSS(region,endpoint,accessKey,secretKey,defaultBucket,avatarBucket,tempBucket, bucketManipulator, fileManipulator);
     }
 
 
     @Bean
     public S3Client s3Client() {
-        final String endpoint = "https://s3." + region + ".jdcloud-oss.com";
+//        final String endpoint = "https://s3." + region + ".jdcloud-oss.com";
 
         AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(accessKey, secretKey);
 
@@ -76,7 +77,6 @@ public class OSSConfig {
     }
     @Bean
     public S3Presigner s3Presigner() {
-        final String endpoint = "https://s3." + region + ".jdcloud-oss.com";
 
         AwsBasicCredentials awsBasicCredentials = AwsBasicCredentials.create(accessKey, secretKey);
 

@@ -1,5 +1,6 @@
 package com.gp_01.user.service.impl;
 
+import com.gp_01.auth.model.po.Account;
 import com.gp_01.common.context.UserContext;
 import com.gp_01.common.domain.Result;
 import com.gp_01.common.enums.ErrorCode;
@@ -9,9 +10,12 @@ import com.gp_01.file.model.domain.dto.userFile.CreateRootDTO;
 import com.gp_01.user.config.UserConfig;
 import com.gp_01.user.model.domain.po.User;
 import com.gp_01.user.mapper.UserMapper;
+import com.gp_01.user.model.domain.vo.UserInfoVo;
 import com.gp_01.user.service.IUserService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.shenyongqi.auth.api.client.AccountClient;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -34,9 +38,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
     private final UserConfig userConfig;
 
+    private final AccountClient accountClient;
+
     @Override
-    public User getUserInfo(Long accountId) {
-        return super.getById(accountId);
+    public UserInfoVo getUserInfo(Long accountId) {
+        Account account = accountClient.getAccount(accountId);
+        if (account == null) {
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR);
+        }
+        User user = super.getById(accountId);
+        UserInfoVo vo = new UserInfoVo();
+        BeanUtils.copyProperties(user, vo);
+        vo.setEmail(account.getEmail())
+                .setStatus(account.getStatus())
+                .setPhoneNumber(account.getPhone());
+        return vo;
     }
 
     @Override

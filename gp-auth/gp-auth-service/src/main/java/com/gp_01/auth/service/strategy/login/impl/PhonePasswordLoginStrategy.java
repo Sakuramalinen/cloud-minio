@@ -35,6 +35,13 @@ public class PhonePasswordLoginStrategy implements LoginStrategy {
         if(account == null){
             throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), "账号或密码错误");
         }
+
+
+        if(!account.getStatus().equals(0)){
+            throw new BadRequestException(ErrorCode.LOGIN_EXPIRATION_ERROR.getCode(),"账号被锁定");
+        }
+
+
         //匹配密码
         boolean success = passwordEncoder.matches(loginForm.getPassword(), account.getPassword());
         if(!success){

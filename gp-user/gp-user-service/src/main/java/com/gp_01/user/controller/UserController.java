@@ -4,6 +4,7 @@ package com.gp_01.user.controller;
 import com.gp_01.common.domain.Result;
 import com.gp_01.user.model.domain.dto.UpdateUsedStoreSizeDTO;
 import com.gp_01.user.model.domain.po.User;
+import com.gp_01.user.model.domain.vo.UserInfoVo;
 import com.gp_01.user.service.IUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,9 +30,9 @@ public class UserController {
 
     @GetMapping("get")
     @Operation(summary = "获取用户信息")
-    public Result<User> getUserInfo(@NotNull @RequestParam("id") Long userId){
-        User user = userService.getUserInfo(userId);
-        return Result.success(user);
+    public Result<UserInfoVo> getUserInfo(@NotNull @RequestParam("id") Long userId){
+        UserInfoVo vo = userService.getUserInfo(userId);
+        return Result.success(vo);
     }
 
 

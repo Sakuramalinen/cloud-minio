@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-@Component
+//@Component
 @Slf4j
 @RequiredArgsConstructor
 public class EmailRegister implements RegisterStrategy {
@@ -31,11 +31,14 @@ public class EmailRegister implements RegisterStrategy {
 
     @Override
     public RegisterType supportedType() {
-        return RegisterType.EMAIL;
+        return RegisterType.EMAIL_VERIFICATION_CODE;
     }
 
     @Override
     public Account register(RegisterDTO dto) {
+
+//        throw new BadRequestException(ErrorCode.SERVICE_ERROR);
+
         //判断是否存在
         LambdaQueryWrapper<Account> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(dto.getEmail() != null, Account::getEmail, dto.getEmail());
@@ -45,6 +48,10 @@ public class EmailRegister implements RegisterStrategy {
             throw new BadRequestException(ErrorCode.USER_EXIST_ERROR);
         }
         Result<User> result = userClient.createUser();
+        if(!result.getCode().equals(200)){
+            throw new BadRequestException(ErrorCode.BUSINESS_ERROR.getCode(), result.getMsg());
+
+        }
         User user = result.getData();
         //密码加密
         String encodePassword = passwordEncoder.encode(dto.getPassword());
@@ -53,6 +60,6 @@ public class EmailRegister implements RegisterStrategy {
                 .setPassword(encodePassword)
                 .setEmail(dto.getEmail())
                 .setDeleted(0L)
-                .setStatus(1);
+                .setStatus(0);
     }
 }

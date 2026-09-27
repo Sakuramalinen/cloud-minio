@@ -24,6 +24,7 @@
         <option value="$PROJECT_DIR$/gp-share/gp-share-api/pom.xml" />
         <option value="$PROJECT_DIR$/gp-share/gp-share-service/pom.xml" />
         <option value="$PROJECT_DIR$/gp-share/gp-share-model/pom.xml" />
+        <option value="$PROJECT_DIR$/gp-auth/gp-auth-api/pom.xml" />
       </list>
     </option>
     <option name="ignoredFiles">

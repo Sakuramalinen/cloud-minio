@@ -2,6 +2,7 @@ spring:
   config:
     import:
       - "optional:nacos:shared-mybatis-plus-${spring.profiles.active}.yaml?group=gp-project&namespace=${spring.cloud.nacos.config.namespace}&refreshEnabled=true"
+      - "optional:nacos:shared-redis-${spring.profiles.active}.yaml?group=gp-project&namespace=${spring.cloud.nacos.config.namespace}&refreshEnabled=true"
       - "optional:nacos:gp-auth-service-${spring.profiles.active}.yaml?group=gp-project&namespace=${spring.cloud.nacos.config.namespace}&refreshEnabled=true"
   cloud:
     nacos:

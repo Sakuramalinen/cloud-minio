@@ -2,9 +2,11 @@ spring:
   application:
     name: gp-auth-service
   profiles:
+#    active: local
     active: ${ACTIVE}
-
 
 server:
   port: ${SERVER-PORT}
-
+logging:
+  level:
+    com.gp_01.auth: debug
